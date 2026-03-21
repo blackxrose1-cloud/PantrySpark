@@ -838,9 +838,12 @@ function App(){
         </div>)}
 
         {/* ═══ INTEGRATIONS ═══ */}
-        {view==="connect"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Integrations</h2><p style={{margin:"0 0 20px",fontSize:12,color:T.silverMuted}}>Connect platforms for more recipes</p>
+        {view==="connect"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Integrations</h2><p style={{margin:"0 0 20px",fontSize:12,color:T.silverMuted}}>Connect platforms for more recipes — coming soon!</p>
           {!isPremium?(<div style={{background:T.accent3Bg,border:`1px solid ${T.accent3Dim}`,borderRadius:14,padding:24,textAlign:"center"}}><div style={{fontSize:32}}>👑</div><div style={{fontSize:16,fontWeight:600,color:T.accent3,marginTop:6,marginBottom:4}}>Premium Integrations</div><div style={{fontSize:12,color:T.silverMuted,marginBottom:14}}>One-time $4.99 · No ads · 1,000+ recipes</div><button onClick={()=>{setIsPremium(true);}} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 24px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Unlock — $4.99</button></div>):(
-          <div style={{display:"grid",gap:12}}>{[{name:"Pinterest",icon:"📌",desc:"Import recipe pins from your boards",color:"#e60023"},{name:"Kindle / eBooks",icon:"📚",desc:"Pull recipes from your cookbooks",color:"#ff9900"},{name:"Instagram",icon:"📷",desc:"Save recipes from bookmarked posts",color:"#c13584"},{name:"YouTube",icon:"▶️",desc:"Import from cooking videos",color:"#ff0000"},{name:"Allrecipes",icon:"🍴",desc:"Sync your favorites",color:"#e86c28"},{name:"TikTok",icon:"🎵",desc:"Import trending recipes",color:"#69C9D0"}].map(int=>{const isConn=!!connectedApps[int.name];return(<div key={int.name} style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${isConn?T.accent1Dim:T.border}`,display:"flex",gap:14,alignItems:"center"}}><div style={{width:44,height:44,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:isConn?T.accent1Bg:`${int.color}15`,flexShrink:0}}>{int.icon}</div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:5}}>{int.name}<PremiumBadge/>{isConn&&<span style={{fontSize:9,color:T.accent1}}>● Connected</span>}</div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}>{isConn?`Syncing from ${int.name}`:int.desc}</div></div><button onClick={()=>setConnectedApps(p=>{const n={...p};if(n[int.name])delete n[int.name];else n[int.name]=true;return n;})} style={{background:isConn?"transparent":int.color,color:isConn?T.danger:"#fff",border:isConn?`1px solid ${T.danger}44`:"none",padding:"7px 16px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minWidth:90,textAlign:"center"}}>{isConn?"Disconnect":"Connect"}</button></div>);})}</div>)}
+          <div>
+            <div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:16,border:`1px solid ${T.border}`,textAlign:"center"}}><div style={{fontSize:28,marginBottom:6}}>🚀</div><div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:4}}>Integrations Coming Soon</div><div style={{fontSize:12,color:T.silverMuted,lineHeight:1.5}}>We're working on connecting PantrySpark to your favorite platforms. These integrations are in development and will be available in a future update.</div></div>
+            <div style={{display:"grid",gap:12}}>{[{name:"Pinterest",icon:"📌",desc:"Import recipe pins from your boards and collections",color:"#e60023"},{name:"Kindle / eBooks",icon:"📚",desc:"Pull recipes from your Kindle cookbooks",color:"#ff9900"},{name:"Instagram",icon:"📷",desc:"Save recipes from your bookmarked posts and reels",color:"#c13584"},{name:"YouTube",icon:"▶️",desc:"Import ingredients from cooking video descriptions",color:"#ff0000"},{name:"Allrecipes",icon:"🍴",desc:"Sync your favorites and recipe collections",color:"#e86c28"},{name:"TikTok",icon:"🎵",desc:"Import trending recipe videos you've saved",color:"#69C9D0"}].map(function(int){return(<div key={int.name} style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,display:"flex",gap:14,alignItems:"center",opacity:0.75}}><div style={{width:44,height:44,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:`${int.color}15`,flexShrink:0}}>{int.icon}</div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:5}}>{int.name}<PremiumBadge/></div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}>{int.desc}</div></div><div style={{background:T.surfaceAlt,color:T.silverMuted,padding:"7px 14px",borderRadius:8,fontSize:11,fontWeight:600,border:`1px solid ${T.border}`,whiteSpace:"nowrap"}}>Coming Soon</div></div>);})}</div>
+          </div>)}
         </div>)}
 
         {/* ═══ MEASUREMENT CONVERTER ═══ */}
@@ -906,8 +909,29 @@ ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
     console.log('PantrySpark: Service Worker registered', reg.scope);
+    // Check for updates every time the app loads
+    reg.update();
+    // When a new SW is found and installed, reload to get new version
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      newWorker.addEventListener('statechange', function() {
+        if (newWorker.state === 'activated') {
+          console.log('PantrySpark: New version available, refreshing...');
+          window.location.reload();
+        }
+      });
+    });
   }).catch(function(err) {
     console.log('PantrySpark: SW registration failed', err);
+  });
+  // Also listen for controller change (when new SW takes over)
+  var refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!refreshing) {
+      refreshing = true;
+      console.log('PantrySpark: Controller changed, refreshing for update...');
+      window.location.reload();
+    }
   });
 }
 </script>

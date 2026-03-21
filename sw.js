@@ -1,63 +1,73 @@
-var CACHE_NAME = 'pantryspark-v1';
+var CACHE_NAME = 'pantryspark-v2';
 var urlsToCache = [
-  '/index.html',
-  '/manifest.json'
+  './index.html',
+  './manifest.json'
 ];
 
-// Install — cache core files
+// Install — cache core files and activate immediately
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      console.log('PantrySpark: Cache opened');
+      console.log('PantrySpark: Caching core files');
       return cache.addAll(urlsToCache);
     })
   );
+  // Skip waiting so the new SW activates immediately
   self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — clean ALL old caches and take control immediately
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
         cacheNames.map(function(cacheName) {
           if (cacheName !== CACHE_NAME) {
-            console.log('PantrySpark: Clearing old cache', cacheName);
+            console.log('PantrySpark: Deleting old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
+    }).then(function() {
+      // Take control of all open tabs immediately
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
 });
 
-// Fetch — serve from cache, fallback to network
+// Fetch — NETWORK FIRST strategy
+// Always tries to get the latest version from the server
+// Only falls back to cache if offline
 self.addEventListener('fetch', function(event) {
-  // Don't cache API calls (Pexels, Anthropic)
+  // Don't cache API calls
   if (event.request.url.indexOf('api.pexels.com') !== -1 ||
-      event.request.url.indexOf('api.anthropic.com') !== -1) {
+      event.request.url.indexOf('api.anthropic.com') !== -1 ||
+      event.request.url.indexOf('api.unsplash.com') !== -1) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then(function(response) {
-      if (response) {
-        return response;
+    fetch(event.request).then(function(response) {
+      // Got a fresh response — update the cache with it
+      if (response && response.status === 200) {
+        var responseToCache = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, responseToCache);
+        });
       }
-      return fetch(event.request).then(function(response) {
-        // Cache successful responses for images
-        if (response && response.status === 200 && response.type === 'basic') {
-          var responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return response;
-      });
+      return response;
     }).catch(function() {
-      // Offline fallback
-      return caches.match('/index.html');
+      // Network failed — serve from cache (offline mode)
+      return caches.match(event.request).then(function(response) {
+        return response || caches.match('./index.html');
+      });
     })
   );
+});
+
+// Listen for messages from the app to force update
+self.addEventListener('message', function(event) {
+  if (event.data === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
