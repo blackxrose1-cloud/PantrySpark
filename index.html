@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PantrySpark — Your Pantry Sparks the Ideas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>html, body { margin: 0; padding: 0; }</style>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="theme-color" content="#2dd4a0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PantrySpark">
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useMemo, createContext, useContext, useCallback, useEffect } = React;
+
+
+// ─── THEMES ─────────────────────────────────────────────────────────────
+const THEMES = {
+  dark: {
+    bg:"#0f1117",surface:"#161922",surfaceHover:"#1c2030",surfaceAlt:"#1a1f2e",
+    border:"#2a2f42",borderLight:"#353b52",
+    silver:"#a8b2c1",silverBright:"#c9d1de",silverMuted:"#6b7490",
+    accent1:"#2dd4a0",accent1Dim:"#1a9e74",accent1Bg:"rgba(45,212,160,0.08)",
+    accent2:"#6c8cff",accent2Dim:"#4a6ad4",accent2Bg:"rgba(108,140,255,0.08)",
+    accent3:"#a78bfa",accent3Dim:"#8b6fe0",accent3Bg:"rgba(167,139,250,0.08)",
+    gold:"#f0c674",danger:"#f87171",dangerBg:"rgba(248,113,113,0.1)",
+    gradHeader:"linear-gradient(135deg, #0d1219 0%, #131a2a 40%, #1a1832 100%)",
+    gradAccent:"linear-gradient(135deg, #2dd4a0, #6c8cff)",
+    gradPremium:"linear-gradient(135deg, #a78bfa, #6c8cff)",
+    text:"#e2e6ef",textDim:"#8891a5",textMuted:"#5a6178",
+    cardShadow:"0 1px 3px rgba(0,0,0,0.15)",cardShadowHover:"0 8px 24px rgba(0,0,0,0.3)",
+    modalOverlay:"rgba(0,0,0,0.6)",scrollThumb:"#2a2f42",inputBg:"#161922",
+    ringTrack:"#1e2438",
+  },
+  light: {
+    bg:"#f4f5f7",surface:"#ffffff",surfaceHover:"#f8f9fb",surfaceAlt:"#eef0f4",
+    border:"#d8dce6",borderLight:"#c5cad6",
+    silver:"#4a5568",silverBright:"#1a202c",silverMuted:"#718096",
+    accent1:"#0d9668",accent1Dim:"#087a54",accent1Bg:"rgba(13,150,104,0.06)",
+    accent2:"#4263d4",accent2Dim:"#3352b8",accent2Bg:"rgba(66,99,212,0.06)",
+    accent3:"#7c5cbf",accent3Dim:"#6548a6",accent3Bg:"rgba(124,92,191,0.06)",
+    gold:"#b8860b",danger:"#dc2626",dangerBg:"rgba(220,38,38,0.06)",
+    gradHeader:"linear-gradient(135deg, #1e293b 0%, #1e3a5f 40%, #2d2458 100%)",
+    gradAccent:"linear-gradient(135deg, #0d9668, #4263d4)",
+    gradPremium:"linear-gradient(135deg, #7c5cbf, #4263d4)",
+    text:"#1a202c",textDim:"#4a5568",textMuted:"#a0aec0",
+    cardShadow:"0 1px 4px rgba(0,0,0,0.06)",cardShadowHover:"0 8px 24px rgba(0,0,0,0.08)",
+    modalOverlay:"rgba(0,0,0,0.4)",scrollThumb:"#cbd5e0",inputBg:"#ffffff",
+    ringTrack:"#e2e8f0",
+  },
+};
+const ThemeCtx=createContext(THEMES.dark);
+const useT=()=>useContext(ThemeCtx);
+const CAT_COLORS={Meat:"#f87171",Seafood:"#38bdf8",Dairy:"#f0c674",Produce:"#2dd4a0",Pantry:"#a78bfa"};
+const CAT_ICONS={Meat:"🥩",Seafood:"🐟",Dairy:"🧀",Produce:"🥬",Pantry:"🏪"};
+const CATS_LIST=["Meat","Seafood","Dairy","Produce","Pantry"];
+
+// ─── 55 FREE RECIPES ────────────────────────────────────────────────────
+const FREE_RECIPES=[
+  {id:1,name:"Lemon Herb Chicken",img:"🍗",time:35,servings:4,cal:380,protein:42,carbs:8,fat:18,tags:["high-protein","gluten-free","dinner"],ingredients:[{n:"Chicken thighs",a:1.5,u:"lbs",cat:"Meat"},{n:"Lemon",a:2,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Fresh rosemary",a:2,u:"sprigs",cat:"Produce"},{n:"Olive oil",a:2,u:"tbsp",cat:"Pantry"},{n:"Salt & pepper",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:2,name:"Veggie Stir-Fry",img:"🥦",time:20,servings:2,cal:290,protein:12,carbs:34,fat:14,tags:["vegan","quick","dinner"],ingredients:[{n:"Broccoli",a:2,u:"cups",cat:"Produce"},{n:"Bell pepper",a:2,u:"pcs",cat:"Produce"},{n:"Carrots",a:2,u:"pcs",cat:"Produce"},{n:"Soy sauce",a:3,u:"tbsp",cat:"Pantry"},{n:"Sesame oil",a:1,u:"tbsp",cat:"Pantry"},{n:"Rice",a:1,u:"cup",cat:"Pantry"},{n:"Ginger",a:1,u:"tbsp",cat:"Produce"}]},
+  {id:3,name:"Pasta Carbonara",img:"🍝",time:25,servings:4,cal:520,protein:24,carbs:58,fat:22,tags:["comfort","dinner","italian"],ingredients:[{n:"Spaghetti",a:1,u:"lb",cat:"Pantry"},{n:"Bacon",a:6,u:"slices",cat:"Meat"},{n:"Eggs",a:3,u:"pcs",cat:"Dairy"},{n:"Parmesan",a:1,u:"cup",cat:"Dairy"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Black pepper",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:4,name:"Greek Salad Bowl",img:"🥗",time:10,servings:2,cal:320,protein:14,carbs:18,fat:24,tags:["quick","vegetarian","lunch"],ingredients:[{n:"Cucumber",a:1,u:"pcs",cat:"Produce"},{n:"Cherry tomatoes",a:1,u:"cup",cat:"Produce"},{n:"Red onion",a:0.5,u:"pcs",cat:"Produce"},{n:"Feta cheese",a:4,u:"oz",cat:"Dairy"},{n:"Kalamata olives",a:0.5,u:"cup",cat:"Pantry"},{n:"Olive oil",a:3,u:"tbsp",cat:"Pantry"},{n:"Lemon",a:1,u:"pcs",cat:"Produce"}]},
+  {id:5,name:"Banana Oat Pancakes",img:"🥞",time:15,servings:2,cal:340,protein:16,carbs:48,fat:10,tags:["breakfast","vegetarian","quick"],ingredients:[{n:"Bananas",a:2,u:"pcs",cat:"Produce"},{n:"Rolled oats",a:1,u:"cup",cat:"Pantry"},{n:"Eggs",a:2,u:"pcs",cat:"Dairy"},{n:"Baking powder",a:1,u:"tsp",cat:"Pantry"},{n:"Cinnamon",a:0.5,u:"tsp",cat:"Pantry"},{n:"Maple syrup",a:2,u:"tbsp",cat:"Pantry"}]},
+  {id:6,name:"Salmon Teriyaki",img:"🐟",time:20,servings:2,cal:440,protein:38,carbs:24,fat:22,tags:["high-protein","dinner","quick","asian"],ingredients:[{n:"Salmon fillets",a:2,u:"pcs",cat:"Seafood"},{n:"Soy sauce",a:3,u:"tbsp",cat:"Pantry"},{n:"Honey",a:2,u:"tbsp",cat:"Pantry"},{n:"Ginger",a:1,u:"tsp",cat:"Produce"},{n:"Garlic",a:2,u:"cloves",cat:"Produce"},{n:"Rice",a:1,u:"cup",cat:"Pantry"}]},
+  {id:7,name:"Black Bean Tacos",img:"🌮",time:15,servings:4,cal:360,protein:16,carbs:48,fat:12,tags:["vegetarian","quick","lunch","mexican"],ingredients:[{n:"Black beans",a:2,u:"cans",cat:"Pantry"},{n:"Corn tortillas",a:12,u:"pcs",cat:"Pantry"},{n:"Avocado",a:2,u:"pcs",cat:"Produce"},{n:"Lime",a:2,u:"pcs",cat:"Produce"},{n:"Cilantro",a:0.5,u:"cup",cat:"Produce"},{n:"Red onion",a:0.5,u:"pcs",cat:"Produce"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:8,name:"Overnight Oats",img:"🥣",time:5,servings:1,cal:380,protein:14,carbs:56,fat:12,tags:["breakfast","meal-prep","vegetarian"],ingredients:[{n:"Rolled oats",a:0.5,u:"cup",cat:"Pantry"},{n:"Almond milk",a:0.5,u:"cup",cat:"Dairy"},{n:"Chia seeds",a:1,u:"tbsp",cat:"Pantry"},{n:"Honey",a:1,u:"tbsp",cat:"Pantry"},{n:"Bananas",a:1,u:"pcs",cat:"Produce"},{n:"Peanut butter",a:1,u:"tbsp",cat:"Pantry"}]},
+  {id:9,name:"Chicken Caesar Wrap",img:"🌯",time:10,servings:2,cal:420,protein:34,carbs:32,fat:18,tags:["lunch","quick","high-protein"],ingredients:[{n:"Chicken breast",a:8,u:"oz",cat:"Meat"},{n:"Flour tortillas",a:2,u:"pcs",cat:"Pantry"},{n:"Romaine lettuce",a:2,u:"cups",cat:"Produce"},{n:"Parmesan",a:0.25,u:"cup",cat:"Dairy"},{n:"Caesar dressing",a:2,u:"tbsp",cat:"Pantry"}]},
+  {id:10,name:"Mushroom Risotto",img:"🍄",time:40,servings:4,cal:460,protein:12,carbs:62,fat:18,tags:["dinner","vegetarian","comfort","italian"],ingredients:[{n:"Arborio rice",a:1.5,u:"cups",cat:"Pantry"},{n:"Mushrooms",a:8,u:"oz",cat:"Produce"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"White wine",a:0.5,u:"cup",cat:"Pantry"},{n:"Parmesan",a:0.75,u:"cup",cat:"Dairy"},{n:"Butter",a:2,u:"tbsp",cat:"Dairy"},{n:"Vegetable broth",a:4,u:"cups",cat:"Pantry"}]},
+  {id:11,name:"Shrimp Scampi",img:"🦐",time:20,servings:2,cal:480,protein:32,carbs:44,fat:20,tags:["dinner","quick","seafood"],ingredients:[{n:"Shrimp",a:1,u:"lb",cat:"Seafood"},{n:"Linguine",a:8,u:"oz",cat:"Pantry"},{n:"Garlic",a:6,u:"cloves",cat:"Produce"},{n:"White wine",a:0.5,u:"cup",cat:"Pantry"},{n:"Butter",a:3,u:"tbsp",cat:"Dairy"},{n:"Lemon",a:1,u:"pcs",cat:"Produce"},{n:"Parsley",a:0.25,u:"cup",cat:"Produce"}]},
+  {id:12,name:"Avocado Toast Deluxe",img:"🥑",time:8,servings:1,cal:360,protein:16,carbs:28,fat:24,tags:["breakfast","quick","vegetarian"],ingredients:[{n:"Sourdough bread",a:2,u:"slices",cat:"Pantry"},{n:"Avocado",a:1,u:"pcs",cat:"Produce"},{n:"Eggs",a:2,u:"pcs",cat:"Dairy"},{n:"Cherry tomatoes",a:0.25,u:"cup",cat:"Produce"},{n:"Red pepper flakes",a:0.25,u:"tsp",cat:"Pantry"}]},
+  {id:13,name:"Thai Peanut Noodles",img:"🍜",time:20,servings:4,cal:440,protein:18,carbs:52,fat:20,tags:["dinner","vegan","asian"],ingredients:[{n:"Rice noodles",a:8,u:"oz",cat:"Pantry"},{n:"Peanut butter",a:0.25,u:"cup",cat:"Pantry"},{n:"Soy sauce",a:2,u:"tbsp",cat:"Pantry"},{n:"Lime",a:2,u:"pcs",cat:"Produce"},{n:"Carrots",a:2,u:"pcs",cat:"Produce"},{n:"Cucumber",a:1,u:"pcs",cat:"Produce"},{n:"Cilantro",a:0.5,u:"cup",cat:"Produce"},{n:"Peanuts",a:0.25,u:"cup",cat:"Pantry"}]},
+  {id:14,name:"Egg Fried Rice",img:"🍳",time:15,servings:2,cal:380,protein:16,carbs:48,fat:14,tags:["quick","dinner","asian"],ingredients:[{n:"Rice",a:2,u:"cups",cat:"Pantry"},{n:"Eggs",a:3,u:"pcs",cat:"Dairy"},{n:"Frozen peas",a:0.5,u:"cup",cat:"Produce"},{n:"Carrots",a:1,u:"pcs",cat:"Produce"},{n:"Soy sauce",a:2,u:"tbsp",cat:"Pantry"},{n:"Sesame oil",a:1,u:"tsp",cat:"Pantry"},{n:"Green onions",a:3,u:"pcs",cat:"Produce"}]},
+  {id:15,name:"Caprese Sandwich",img:"🥪",time:5,servings:1,cal:420,protein:18,carbs:36,fat:24,tags:["lunch","quick","vegetarian","italian"],ingredients:[{n:"Ciabatta roll",a:1,u:"pcs",cat:"Pantry"},{n:"Fresh mozzarella",a:4,u:"oz",cat:"Dairy"},{n:"Tomato",a:1,u:"pcs",cat:"Produce"},{n:"Fresh basil",a:6,u:"leaves",cat:"Produce"},{n:"Balsamic glaze",a:1,u:"tbsp",cat:"Pantry"},{n:"Olive oil",a:1,u:"tbsp",cat:"Pantry"}]},
+  {id:16,name:"Beef & Broccoli",img:"🥩",time:25,servings:4,cal:420,protein:36,carbs:28,fat:18,tags:["dinner","high-protein","asian"],ingredients:[{n:"Flank steak",a:1,u:"lb",cat:"Meat"},{n:"Broccoli",a:4,u:"cups",cat:"Produce"},{n:"Soy sauce",a:0.25,u:"cup",cat:"Pantry"},{n:"Brown sugar",a:2,u:"tbsp",cat:"Pantry"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Ginger",a:1,u:"tbsp",cat:"Produce"},{n:"Cornstarch",a:1,u:"tbsp",cat:"Pantry"},{n:"Rice",a:2,u:"cups",cat:"Pantry"}]},
+  {id:17,name:"Smoothie Bowl",img:"🫐",time:5,servings:1,cal:340,protein:10,carbs:58,fat:8,tags:["breakfast","quick","vegan"],ingredients:[{n:"Frozen berries",a:1.5,u:"cups",cat:"Produce"},{n:"Bananas",a:1,u:"pcs",cat:"Produce"},{n:"Almond milk",a:0.5,u:"cup",cat:"Dairy"},{n:"Granola",a:0.25,u:"cup",cat:"Pantry"},{n:"Chia seeds",a:1,u:"tbsp",cat:"Pantry"},{n:"Honey",a:1,u:"tbsp",cat:"Pantry"}]},
+  {id:18,name:"Stuffed Bell Peppers",img:"🫑",time:45,servings:4,cal:390,protein:28,carbs:34,fat:16,tags:["dinner","high-protein","meal-prep"],ingredients:[{n:"Bell pepper",a:4,u:"pcs",cat:"Produce"},{n:"Ground turkey",a:1,u:"lb",cat:"Meat"},{n:"Rice",a:1,u:"cup",cat:"Pantry"},{n:"Black beans",a:1,u:"can",cat:"Pantry"},{n:"Cheddar cheese",a:1,u:"cup",cat:"Dairy"},{n:"Salsa",a:1,u:"cup",cat:"Pantry"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:19,name:"Chickpea Curry",img:"🍛",time:30,servings:4,cal:380,protein:14,carbs:52,fat:14,tags:["vegan","dinner","meal-prep","indian"],ingredients:[{n:"Chickpeas",a:2,u:"cans",cat:"Pantry"},{n:"Coconut milk",a:1,u:"can",cat:"Pantry"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Ginger",a:1,u:"tbsp",cat:"Produce"},{n:"Curry powder",a:2,u:"tbsp",cat:"Pantry"},{n:"Tomato paste",a:2,u:"tbsp",cat:"Pantry"},{n:"Rice",a:2,u:"cups",cat:"Pantry"}]},
+  {id:20,name:"BLT with Fried Egg",img:"🥓",time:10,servings:1,cal:440,protein:22,carbs:30,fat:28,tags:["lunch","quick","breakfast"],ingredients:[{n:"Bacon",a:4,u:"slices",cat:"Meat"},{n:"Sourdough bread",a:2,u:"slices",cat:"Pantry"},{n:"Tomato",a:1,u:"pcs",cat:"Produce"},{n:"Lettuce",a:2,u:"leaves",cat:"Produce"},{n:"Eggs",a:1,u:"pcs",cat:"Dairy"},{n:"Mayonnaise",a:1,u:"tbsp",cat:"Pantry"}]},
+  {id:21,name:"Honey Garlic Pork",img:"🍖",time:25,servings:4,cal:400,protein:38,carbs:18,fat:20,tags:["dinner","high-protein"],ingredients:[{n:"Pork chops",a:4,u:"pcs",cat:"Meat"},{n:"Honey",a:3,u:"tbsp",cat:"Pantry"},{n:"Garlic",a:6,u:"cloves",cat:"Produce"},{n:"Soy sauce",a:2,u:"tbsp",cat:"Pantry"},{n:"Butter",a:2,u:"tbsp",cat:"Dairy"},{n:"Fresh thyme",a:4,u:"sprigs",cat:"Produce"}]},
+  {id:22,name:"Mediterranean Quinoa",img:"🫒",time:25,servings:4,cal:360,protein:14,carbs:48,fat:14,tags:["vegan","lunch","meal-prep"],ingredients:[{n:"Quinoa",a:1,u:"cup",cat:"Pantry"},{n:"Cucumber",a:1,u:"pcs",cat:"Produce"},{n:"Cherry tomatoes",a:1,u:"cup",cat:"Produce"},{n:"Kalamata olives",a:0.5,u:"cup",cat:"Pantry"},{n:"Red onion",a:0.5,u:"pcs",cat:"Produce"},{n:"Olive oil",a:3,u:"tbsp",cat:"Pantry"},{n:"Lemon",a:1,u:"pcs",cat:"Produce"}]},
+  {id:23,name:"French Toast",img:"🍞",time:15,servings:2,cal:420,protein:14,carbs:52,fat:18,tags:["breakfast","vegetarian","comfort"],ingredients:[{n:"Bread",a:4,u:"slices",cat:"Pantry"},{n:"Eggs",a:3,u:"pcs",cat:"Dairy"},{n:"Milk",a:0.5,u:"cup",cat:"Dairy"},{n:"Cinnamon",a:1,u:"tsp",cat:"Pantry"},{n:"Vanilla extract",a:1,u:"tsp",cat:"Pantry"},{n:"Butter",a:2,u:"tbsp",cat:"Dairy"},{n:"Maple syrup",a:2,u:"tbsp",cat:"Pantry"}]},
+  {id:24,name:"Tuna Poke Bowl",img:"🐠",time:15,servings:2,cal:410,protein:30,carbs:44,fat:16,tags:["lunch","dinner","quick","asian"],ingredients:[{n:"Sushi-grade tuna",a:8,u:"oz",cat:"Seafood"},{n:"Rice",a:1,u:"cup",cat:"Pantry"},{n:"Soy sauce",a:2,u:"tbsp",cat:"Pantry"},{n:"Avocado",a:1,u:"pcs",cat:"Produce"},{n:"Cucumber",a:0.5,u:"pcs",cat:"Produce"},{n:"Edamame",a:0.5,u:"cup",cat:"Produce"}]},
+  {id:25,name:"Margherita Pizza",img:"🍕",time:30,servings:4,cal:480,protein:20,carbs:56,fat:20,tags:["dinner","vegetarian","italian","comfort"],ingredients:[{n:"Pizza dough",a:1,u:"lb",cat:"Pantry"},{n:"San Marzano tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Fresh mozzarella",a:8,u:"oz",cat:"Dairy"},{n:"Fresh basil",a:1,u:"bunch",cat:"Produce"},{n:"Olive oil",a:2,u:"tbsp",cat:"Pantry"},{n:"Garlic",a:2,u:"cloves",cat:"Produce"}]},
+  {id:26,name:"Teriyaki Chicken Bowl",img:"🍚",time:25,servings:2,cal:450,protein:36,carbs:48,fat:12,tags:["dinner","asian","high-protein"],ingredients:[{n:"Chicken breast",a:12,u:"oz",cat:"Meat"},{n:"Rice",a:1,u:"cup",cat:"Pantry"},{n:"Soy sauce",a:3,u:"tbsp",cat:"Pantry"},{n:"Honey",a:2,u:"tbsp",cat:"Pantry"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Broccoli",a:1,u:"cup",cat:"Produce"}]},
+  {id:27,name:"Spinach Feta Omelette",img:"🥚",time:10,servings:1,cal:310,protein:24,carbs:4,fat:22,tags:["breakfast","quick","vegetarian","keto"],ingredients:[{n:"Eggs",a:3,u:"pcs",cat:"Dairy"},{n:"Spinach",a:1,u:"cup",cat:"Produce"},{n:"Feta cheese",a:2,u:"oz",cat:"Dairy"},{n:"Butter",a:1,u:"tbsp",cat:"Dairy"}]},
+  {id:28,name:"Mango Chicken Salad",img:"🥭",time:15,servings:2,cal:390,protein:32,carbs:28,fat:16,tags:["lunch","quick","gluten-free"],ingredients:[{n:"Chicken breast",a:8,u:"oz",cat:"Meat"},{n:"Mango",a:1,u:"pcs",cat:"Produce"},{n:"Mixed greens",a:4,u:"cups",cat:"Produce"},{n:"Red onion",a:0.25,u:"pcs",cat:"Produce"},{n:"Lime",a:1,u:"pcs",cat:"Produce"},{n:"Olive oil",a:2,u:"tbsp",cat:"Pantry"}]},
+  {id:29,name:"Loaded Sweet Potato",img:"🍠",time:50,servings:2,cal:420,protein:18,carbs:62,fat:14,tags:["dinner","vegetarian","comfort"],ingredients:[{n:"Sweet potatoes",a:2,u:"pcs",cat:"Produce"},{n:"Black beans",a:1,u:"can",cat:"Pantry"},{n:"Cheddar cheese",a:0.5,u:"cup",cat:"Dairy"},{n:"Sour cream",a:2,u:"tbsp",cat:"Dairy"},{n:"Green onions",a:2,u:"pcs",cat:"Produce"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:30,name:"Turkey Meatballs",img:"🧆",time:30,servings:4,cal:360,protein:32,carbs:24,fat:16,tags:["dinner","high-protein","meal-prep"],ingredients:[{n:"Ground turkey",a:1,u:"lb",cat:"Meat"},{n:"Breadcrumbs",a:0.5,u:"cup",cat:"Pantry"},{n:"Eggs",a:1,u:"pcs",cat:"Dairy"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Parmesan",a:0.25,u:"cup",cat:"Dairy"},{n:"Marinara sauce",a:2,u:"cups",cat:"Pantry"},{n:"Fresh basil",a:0.25,u:"cup",cat:"Produce"}]},
+  {id:31,name:"Coconut Shrimp Curry",img:"🍤",time:25,servings:4,cal:410,protein:28,carbs:30,fat:22,tags:["dinner","seafood","asian"],ingredients:[{n:"Shrimp",a:1,u:"lb",cat:"Seafood"},{n:"Coconut milk",a:1,u:"can",cat:"Pantry"},{n:"Curry powder",a:2,u:"tbsp",cat:"Pantry"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Bell pepper",a:1,u:"pcs",cat:"Produce"},{n:"Rice",a:1,u:"cup",cat:"Pantry"}]},
+  {id:32,name:"Cobb Salad",img:"🥬",time:15,servings:2,cal:460,protein:36,carbs:12,fat:32,tags:["lunch","high-protein","keto"],ingredients:[{n:"Chicken breast",a:8,u:"oz",cat:"Meat"},{n:"Bacon",a:4,u:"slices",cat:"Meat"},{n:"Eggs",a:2,u:"pcs",cat:"Dairy"},{n:"Avocado",a:1,u:"pcs",cat:"Produce"},{n:"Cherry tomatoes",a:0.5,u:"cup",cat:"Produce"},{n:"Romaine lettuce",a:4,u:"cups",cat:"Produce"}]},
+  {id:33,name:"Lentil Soup",img:"🍲",time:40,servings:6,cal:280,protein:18,carbs:42,fat:4,tags:["vegan","dinner","meal-prep","comfort"],ingredients:[{n:"Red lentils",a:1.5,u:"cups",cat:"Pantry"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Carrots",a:2,u:"pcs",cat:"Produce"},{n:"Celery",a:2,u:"stalks",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Cumin",a:2,u:"tsp",cat:"Pantry"},{n:"Vegetable broth",a:6,u:"cups",cat:"Pantry"},{n:"Lemon",a:1,u:"pcs",cat:"Produce"}]},
+  {id:34,name:"BBQ Chicken Quesadilla",img:"🫓",time:15,servings:2,cal:490,protein:34,carbs:40,fat:22,tags:["lunch","quick","comfort"],ingredients:[{n:"Chicken breast",a:8,u:"oz",cat:"Meat"},{n:"Flour tortillas",a:4,u:"pcs",cat:"Pantry"},{n:"Cheddar cheese",a:1,u:"cup",cat:"Dairy"},{n:"BBQ sauce",a:0.25,u:"cup",cat:"Pantry"},{n:"Red onion",a:0.25,u:"pcs",cat:"Produce"},{n:"Cilantro",a:2,u:"tbsp",cat:"Produce"}]},
+  {id:35,name:"Cauliflower Mac & Cheese",img:"🧀",time:30,servings:4,cal:340,protein:18,carbs:22,fat:22,tags:["dinner","vegetarian","comfort","keto"],ingredients:[{n:"Cauliflower",a:1,u:"head",cat:"Produce"},{n:"Cheddar cheese",a:2,u:"cups",cat:"Dairy"},{n:"Milk",a:0.5,u:"cup",cat:"Dairy"},{n:"Butter",a:2,u:"tbsp",cat:"Dairy"},{n:"Garlic",a:2,u:"cloves",cat:"Produce"}]},
+  {id:36,name:"Fish Tacos",img:"🐟",time:20,servings:4,cal:380,protein:28,carbs:36,fat:14,tags:["dinner","quick","mexican","seafood"],ingredients:[{n:"White fish fillets",a:1,u:"lb",cat:"Seafood"},{n:"Corn tortillas",a:8,u:"pcs",cat:"Pantry"},{n:"Cabbage",a:2,u:"cups",cat:"Produce"},{n:"Lime",a:2,u:"pcs",cat:"Produce"},{n:"Sour cream",a:0.25,u:"cup",cat:"Dairy"},{n:"Cilantro",a:0.25,u:"cup",cat:"Produce"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"}]},
+  {id:37,name:"Pesto Pasta",img:"🌿",time:15,servings:4,cal:480,protein:16,carbs:52,fat:24,tags:["dinner","quick","italian","vegetarian"],ingredients:[{n:"Penne pasta",a:1,u:"lb",cat:"Pantry"},{n:"Fresh basil",a:2,u:"cups",cat:"Produce"},{n:"Pine nuts",a:0.25,u:"cup",cat:"Pantry"},{n:"Parmesan",a:0.5,u:"cup",cat:"Dairy"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Olive oil",a:0.33,u:"cup",cat:"Pantry"},{n:"Cherry tomatoes",a:1,u:"cup",cat:"Produce"}]},
+  {id:38,name:"Korean Beef Bowl",img:"🥘",time:20,servings:4,cal:440,protein:30,carbs:44,fat:18,tags:["dinner","asian","high-protein"],ingredients:[{n:"Ground beef",a:1,u:"lb",cat:"Meat"},{n:"Rice",a:2,u:"cups",cat:"Pantry"},{n:"Soy sauce",a:0.25,u:"cup",cat:"Pantry"},{n:"Brown sugar",a:3,u:"tbsp",cat:"Pantry"},{n:"Sesame oil",a:1,u:"tbsp",cat:"Pantry"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Ginger",a:1,u:"tbsp",cat:"Produce"},{n:"Green onions",a:4,u:"pcs",cat:"Produce"}]},
+  {id:39,name:"Shakshuka",img:"🍳",time:25,servings:4,cal:260,protein:14,carbs:18,fat:16,tags:["breakfast","vegetarian"],ingredients:[{n:"Eggs",a:6,u:"pcs",cat:"Dairy"},{n:"Canned tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Bell pepper",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"},{n:"Feta cheese",a:2,u:"oz",cat:"Dairy"}]},
+  {id:40,name:"Chicken Tikka Masala",img:"🍛",time:40,servings:4,cal:420,protein:36,carbs:22,fat:22,tags:["dinner","indian","high-protein"],ingredients:[{n:"Chicken breast",a:1.5,u:"lbs",cat:"Meat"},{n:"Yogurt",a:1,u:"cup",cat:"Dairy"},{n:"Canned tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Heavy cream",a:0.5,u:"cup",cat:"Dairy"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Ginger",a:1,u:"tbsp",cat:"Produce"},{n:"Garam masala",a:2,u:"tbsp",cat:"Pantry"}]},
+  {id:41,name:"Zucchini Bolognese",img:"🍃",time:30,servings:4,cal:320,protein:28,carbs:16,fat:18,tags:["dinner","keto","gluten-free"],ingredients:[{n:"Zucchini",a:4,u:"pcs",cat:"Produce"},{n:"Ground beef",a:1,u:"lb",cat:"Meat"},{n:"Canned tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:4,u:"cloves",cat:"Produce"},{n:"Olive oil",a:2,u:"tbsp",cat:"Pantry"},{n:"Parmesan",a:0.25,u:"cup",cat:"Dairy"}]},
+  {id:42,name:"Breakfast Burrito",img:"🌯",time:15,servings:2,cal:480,protein:26,carbs:42,fat:24,tags:["breakfast","quick","comfort"],ingredients:[{n:"Flour tortillas",a:2,u:"pcs",cat:"Pantry"},{n:"Eggs",a:4,u:"pcs",cat:"Dairy"},{n:"Bacon",a:4,u:"slices",cat:"Meat"},{n:"Cheddar cheese",a:0.5,u:"cup",cat:"Dairy"},{n:"Avocado",a:1,u:"pcs",cat:"Produce"},{n:"Salsa",a:0.25,u:"cup",cat:"Pantry"}]},
+  {id:43,name:"Minestrone Soup",img:"🥣",time:35,servings:6,cal:220,protein:10,carbs:36,fat:4,tags:["vegan","dinner","comfort","italian","meal-prep"],ingredients:[{n:"Cannellini beans",a:1,u:"can",cat:"Pantry"},{n:"Pasta",a:1,u:"cup",cat:"Pantry"},{n:"Carrots",a:2,u:"pcs",cat:"Produce"},{n:"Celery",a:2,u:"stalks",cat:"Produce"},{n:"Zucchini",a:1,u:"pcs",cat:"Produce"},{n:"Canned tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Vegetable broth",a:6,u:"cups",cat:"Pantry"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"}]},
+  {id:44,name:"Honey Lime Shrimp",img:"🦐",time:15,servings:2,cal:320,protein:30,carbs:18,fat:14,tags:["dinner","quick","seafood"],ingredients:[{n:"Shrimp",a:1,u:"lb",cat:"Seafood"},{n:"Honey",a:2,u:"tbsp",cat:"Pantry"},{n:"Lime",a:2,u:"pcs",cat:"Produce"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Butter",a:2,u:"tbsp",cat:"Dairy"},{n:"Cilantro",a:0.25,u:"cup",cat:"Produce"}]},
+  {id:45,name:"Pulled Pork Sandwich",img:"🥪",time:120,servings:8,cal:460,protein:34,carbs:38,fat:20,tags:["dinner","comfort","meal-prep"],ingredients:[{n:"Pork shoulder",a:3,u:"lbs",cat:"Meat"},{n:"BBQ sauce",a:1,u:"cup",cat:"Pantry"},{n:"Burger buns",a:8,u:"pcs",cat:"Pantry"},{n:"Apple cider vinegar",a:2,u:"tbsp",cat:"Pantry"},{n:"Paprika",a:1,u:"tbsp",cat:"Pantry"},{n:"Coleslaw mix",a:2,u:"cups",cat:"Produce"}]},
+  {id:46,name:"Acai Bowl",img:"🍇",time:10,servings:1,cal:360,protein:8,carbs:64,fat:10,tags:["breakfast","vegan","quick"],ingredients:[{n:"Acai packet",a:1,u:"pcs",cat:"Produce"},{n:"Bananas",a:1,u:"pcs",cat:"Produce"},{n:"Almond milk",a:0.25,u:"cup",cat:"Dairy"},{n:"Granola",a:0.25,u:"cup",cat:"Pantry"},{n:"Honey",a:1,u:"tbsp",cat:"Pantry"},{n:"Frozen berries",a:0.5,u:"cup",cat:"Produce"}]},
+  {id:47,name:"Lamb Gyro Bowl",img:"🐑",time:25,servings:2,cal:480,protein:32,carbs:40,fat:22,tags:["dinner","high-protein"],ingredients:[{n:"Ground lamb",a:8,u:"oz",cat:"Meat"},{n:"Pita bread",a:2,u:"pcs",cat:"Pantry"},{n:"Cucumber",a:1,u:"pcs",cat:"Produce"},{n:"Tomato",a:1,u:"pcs",cat:"Produce"},{n:"Red onion",a:0.25,u:"pcs",cat:"Produce"},{n:"Yogurt",a:0.5,u:"cup",cat:"Dairy"},{n:"Garlic",a:2,u:"cloves",cat:"Produce"}]},
+  {id:48,name:"Vegetable Pad Thai",img:"🍜",time:20,servings:4,cal:380,protein:12,carbs:56,fat:14,tags:["vegan","dinner","asian"],ingredients:[{n:"Rice noodles",a:8,u:"oz",cat:"Pantry"},{n:"Tofu",a:8,u:"oz",cat:"Produce"},{n:"Bean sprouts",a:1,u:"cup",cat:"Produce"},{n:"Green onions",a:4,u:"pcs",cat:"Produce"},{n:"Peanuts",a:0.25,u:"cup",cat:"Pantry"},{n:"Lime",a:2,u:"pcs",cat:"Produce"},{n:"Soy sauce",a:3,u:"tbsp",cat:"Pantry"}]},
+  {id:49,name:"Chicken Fajitas",img:"🌶️",time:20,servings:4,cal:380,protein:32,carbs:28,fat:16,tags:["dinner","quick","mexican","high-protein"],ingredients:[{n:"Chicken breast",a:1,u:"lb",cat:"Meat"},{n:"Bell pepper",a:3,u:"pcs",cat:"Produce"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Flour tortillas",a:8,u:"pcs",cat:"Pantry"},{n:"Lime",a:1,u:"pcs",cat:"Produce"},{n:"Cumin",a:1,u:"tsp",cat:"Pantry"},{n:"Sour cream",a:0.25,u:"cup",cat:"Dairy"}]},
+  {id:50,name:"Baked Ziti",img:"🧀",time:45,servings:6,cal:480,protein:26,carbs:52,fat:18,tags:["dinner","italian","comfort","meal-prep"],ingredients:[{n:"Ziti pasta",a:1,u:"lb",cat:"Pantry"},{n:"Ricotta",a:15,u:"oz",cat:"Dairy"},{n:"Mozzarella",a:2,u:"cups",cat:"Dairy"},{n:"Marinara sauce",a:3,u:"cups",cat:"Pantry"},{n:"Ground beef",a:1,u:"lb",cat:"Meat"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"}]},
+  {id:51,name:"Taco Salad",img:"🥗",time:15,servings:4,cal:420,protein:28,carbs:30,fat:22,tags:["lunch","quick","mexican"],ingredients:[{n:"Ground beef",a:1,u:"lb",cat:"Meat"},{n:"Romaine lettuce",a:6,u:"cups",cat:"Produce"},{n:"Black beans",a:1,u:"can",cat:"Pantry"},{n:"Corn",a:1,u:"cup",cat:"Produce"},{n:"Cheddar cheese",a:1,u:"cup",cat:"Dairy"},{n:"Tomato",a:2,u:"pcs",cat:"Produce"},{n:"Tortilla chips",a:2,u:"cups",cat:"Pantry"}]},
+  {id:52,name:"Garlic Butter Salmon",img:"🐟",time:20,servings:2,cal:420,protein:40,carbs:4,fat:28,tags:["dinner","quick","keto","seafood"],ingredients:[{n:"Salmon fillets",a:2,u:"pcs",cat:"Seafood"},{n:"Butter",a:3,u:"tbsp",cat:"Dairy"},{n:"Garlic",a:6,u:"cloves",cat:"Produce"},{n:"Lemon",a:1,u:"pcs",cat:"Produce"},{n:"Parsley",a:2,u:"tbsp",cat:"Produce"}]},
+  {id:53,name:"Cauliflower Fried Rice",img:"🥬",time:15,servings:2,cal:220,protein:10,carbs:18,fat:14,tags:["dinner","keto","quick"],ingredients:[{n:"Cauliflower",a:1,u:"head",cat:"Produce"},{n:"Eggs",a:2,u:"pcs",cat:"Dairy"},{n:"Carrots",a:1,u:"pcs",cat:"Produce"},{n:"Frozen peas",a:0.5,u:"cup",cat:"Produce"},{n:"Soy sauce",a:2,u:"tbsp",cat:"Pantry"},{n:"Sesame oil",a:1,u:"tsp",cat:"Pantry"},{n:"Green onions",a:3,u:"pcs",cat:"Produce"}]},
+  {id:54,name:"Chicken Tortilla Soup",img:"🍲",time:35,servings:6,cal:320,protein:28,carbs:28,fat:12,tags:["dinner","comfort","mexican","meal-prep"],ingredients:[{n:"Chicken breast",a:1,u:"lb",cat:"Meat"},{n:"Canned tomatoes",a:1,u:"can",cat:"Pantry"},{n:"Black beans",a:1,u:"can",cat:"Pantry"},{n:"Corn",a:1,u:"cup",cat:"Produce"},{n:"Onion",a:1,u:"pcs",cat:"Produce"},{n:"Garlic",a:3,u:"cloves",cat:"Produce"},{n:"Cumin",a:2,u:"tsp",cat:"Pantry"},{n:"Tortilla chips",a:2,u:"cups",cat:"Pantry"}]},
+  {id:55,name:"PB Banana Wrap",img:"🍌",time:5,servings:1,cal:380,protein:14,carbs:48,fat:18,tags:["breakfast","quick","snack"],ingredients:[{n:"Flour tortillas",a:1,u:"pcs",cat:"Pantry"},{n:"Peanut butter",a:2,u:"tbsp",cat:"Pantry"},{n:"Bananas",a:1,u:"pcs",cat:"Produce"},{n:"Honey",a:1,u:"tbsp",cat:"Pantry"},{n:"Granola",a:2,u:"tbsp",cat:"Pantry"}]},
+];
+
+// ─── PREMIUM RECIPE GENERATOR ────────────────────────────────────────────
+const PB=[{p:"Grilled",m:["Chicken","Steak","Salmon","Shrimp","Lamb","Pork","Tofu","Swordfish","Tuna","Turkey"],s:["Chimichurri","Herb Butter","Lemon","Mango Salsa","Garlic Aioli","Skewers","Tzatziki","Pineapple","Caesar","Mediterranean"]},{p:"Roasted",m:["Chicken","Cauliflower","Sweet Potato","Brussels Sprouts","Beet","Squash","Eggplant","Fennel","Carrot","Chickpea"],s:["Bowl","Salad","Tahini","Feta","Medley","Hash","Tacos","Curry","Soup","Grain Bowl"]},{p:"Pan-Seared",m:["Salmon","Scallops","Duck","Halibut","Cod","Chicken","Tilapia","Tuna","Trout","Sea Bass"],s:["Risotto","Greens","Capers","Piccata","Potatoes","Beurre Blanc","Asparagus","Fennel","Polenta","Provençal"]},{p:"Slow-Cooked",m:["Beef","Pork","Chicken","Lamb","Turkey","Brisket","Short Ribs","Pulled Pork","Carnitas","Pot Roast"],s:["Stew","Tacos","Ragu","Chili","Soup","Sandwich","Bowl","Enchiladas","Nachos","Sliders"]},{p:"Baked",m:["Chicken","Salmon","Falafel","Mac Cheese","Ziti","Eggplant","Cod","Potato","Frittata","Meatball"],s:["Parmesan","Casserole","Florentine","Pesto","Gratin","Stuffed","Herbs","Mediterranean","Provençal","Supreme"]},{p:"Crispy",m:["Tofu","Chicken","Shrimp","Cauliflower","Fish","Pork","Tempeh","Chickpea","Rice","Potato"],s:["Tacos","Bowl","Wrap","Salad","Sandwich","Stir-Fry","Curry","Bites","Sliders","Plate"]},{p:"Spicy",m:["Thai","Korean","Mexican","Indian","Szechuan","Cajun","Jamaican","Ethiopian","Moroccan","Harissa"],s:["Noodles","Rice Bowl","Curry","Stir-Fry","Tacos","Soup","Stew","Wraps","Salad","Bowls"]},{p:"Fresh",m:["Spring","Summer","Garden","Harvest","Rainbow","Tropical","Berry","Citrus","Herb","Green"],s:["Salad","Bowl","Rolls","Smoothie","Wrap","Gazpacho","Ceviche","Tartare","Slaw","Platter"]},{p:"Creamy",m:["Tuscan","Garlic","Mushroom","Spinach","Tomato","Coconut","Pesto","Alfredo","Parmesan","Avocado"],s:["Chicken","Pasta","Soup","Risotto","Polenta","Gnocchi","Orzo","Tortellini","Penne","Ravioli"]},{p:"Smoky",m:["Chipotle","Paprika","Mesquite","Ancho","Applewood","Bourbon","Hickory","Adobo","Smoked","Fire-Roasted"],s:["Chicken","Ribs","Brisket","Salmon","Beans","Chili","Wings","Tacos","Steak","Burger"]}];
+const PT=["dinner","lunch","breakfast","quick","comfort","high-protein","vegan","vegetarian","keto","gluten-free","meal-prep","asian","italian","mexican","indian","mediterranean","seafood","american","french","thai","korean","japanese"];
+const PI=[{n:"Chicken breast",cat:"Meat"},{n:"Ground beef",cat:"Meat"},{n:"Salmon fillets",cat:"Seafood"},{n:"Shrimp",cat:"Seafood"},{n:"Tofu",cat:"Produce"},{n:"Eggs",cat:"Dairy"},{n:"Rice",cat:"Pantry"},{n:"Pasta",cat:"Pantry"},{n:"Onion",cat:"Produce"},{n:"Garlic",cat:"Produce"},{n:"Olive oil",cat:"Pantry"},{n:"Butter",cat:"Dairy"},{n:"Bell pepper",cat:"Produce"},{n:"Tomato",cat:"Produce"},{n:"Broccoli",cat:"Produce"},{n:"Spinach",cat:"Produce"},{n:"Carrots",cat:"Produce"},{n:"Soy sauce",cat:"Pantry"},{n:"Lemon",cat:"Produce"},{n:"Lime",cat:"Produce"},{n:"Ginger",cat:"Produce"},{n:"Coconut milk",cat:"Pantry"},{n:"Cheddar cheese",cat:"Dairy"},{n:"Avocado",cat:"Produce"},{n:"Cilantro",cat:"Produce"},{n:"Cumin",cat:"Pantry"},{n:"Honey",cat:"Pantry"},{n:"Parmesan",cat:"Dairy"},{n:"Black beans",cat:"Pantry"},{n:"Flour tortillas",cat:"Pantry"},{n:"Mushrooms",cat:"Produce"},{n:"Zucchini",cat:"Produce"},{n:"Sweet potatoes",cat:"Produce"},{n:"Quinoa",cat:"Pantry"},{n:"Greek yogurt",cat:"Dairy"}];
+const PE=["🍽️","🥘","🍲","🥗","🍛","🥙","🫕","🍖","🥩","🐟","🦐","🍤","🥚","🧆","🌯","🌮","🍕","🥪","🍜","🍝","🥣","🫒","🥦","🍠","🧀","🍗","🥓","🫑","🌶️"];
+const PA=["1 cup","2 cups","1 lb","8 oz","0.5 cup","1 can","2 tbsp","1 tsp","4 cloves","1 pcs","2 pcs","0.25 cup","6 oz","3 tbsp"];
+const PU=["cup","cups","lb","oz","cup","can","tbsp","tsp","cloves","pcs","pcs","cup","oz","tbsp"];
+function sr(seed){let s=seed;return()=>{s=(s*16807)%2147483647;return(s-1)/2147483646;};}
+function genPremium(){const r=[];let id=100;const rng=sr(42);for(let b=0;b<PB.length;b++){const base=PB[b];for(let m=0;m<base.m.length;m++){for(let s=0;s<base.s.length;s++){const name=`${base.p} ${base.m[m]} ${base.s[s]}`;const ni=4+Math.floor(rng()*4);const ings=[];const used=new Set();for(let i=0;i<ni;i++){let idx=Math.floor(rng()*PI.length);let t=0;while(used.has(idx)&&t<20){idx=Math.floor(rng()*PI.length);t++;}used.add(idx);const ai=Math.floor(rng()*PA.length);const amt=parseFloat(PA[ai]);ings.push({n:PI[idx].n,a:isNaN(amt)?1:amt,u:PU[ai],cat:PI[idx].cat});}const nt=2+Math.floor(rng()*3);const tags=[];for(let t=0;t<nt;t++){const tag=PT[Math.floor(rng()*PT.length)];if(!tags.includes(tag))tags.push(tag);}r.push({id:id++,name,img:PE[Math.floor(rng()*PE.length)],time:[10,15,20,25,30,35,40,45,50,60][Math.floor(rng()*10)],servings:[1,2,2,4,4,4,6][Math.floor(rng()*7)],cal:200+Math.floor(rng()*400),protein:8+Math.floor(rng()*40),carbs:5+Math.floor(rng()*60),fat:4+Math.floor(rng()*30),tags,ingredients:ings,isPremiumOnly:true});}}}return r;}
+
+const COMMON_INGREDIENTS=["Chicken breast","Chicken thighs","Ground turkey","Ground beef","Flank steak","Bacon","Pork chops","Ground lamb","Salmon fillets","Shrimp","Eggs","Milk","Butter","Cheddar cheese","Parmesan","Fresh mozzarella","Feta cheese","Almond milk","Yogurt","Sour cream","Broccoli","Bell pepper","Carrots","Onion","Garlic","Tomato","Cherry tomatoes","Cucumber","Avocado","Bananas","Lemon","Lime","Ginger","Romaine lettuce","Mushrooms","Red onion","Spinach","Zucchini","Sweet potatoes","Cauliflower","Green onions","Cilantro","Fresh basil","Parsley","Tofu","Rice","Rolled oats","Spaghetti","Penne pasta","Rice noodles","Flour tortillas","Corn tortillas","Sourdough bread","Quinoa","Soy sauce","Olive oil","Sesame oil","Honey","Peanut butter","Black beans","Chickpeas","Coconut milk","Canned tomatoes","Marinara sauce","BBQ sauce","Vegetable broth","Maple syrup","Cumin","Curry powder","Cinnamon"];
+
+function userHas(ingName,myIngs){const il=ingName.toLowerCase();return myIngs.some(my=>{const ml=my.toLowerCase();return il.includes(ml)||ml.includes(il);});}
+function fmtAmt(a,u){if(!a&&a!==0)return"";const n=Number(a);if(isNaN(n))return`${a} ${u||""}`;if(n===Math.floor(n))return`${n} ${u||""}`;return`${n.toFixed(n<1?2:1)} ${u||""}`;}
+function scaleIng(ing,baseServings,targetServings){const ratio=targetServings/baseServings;return{...ing,a:Math.round(ing.a*ratio*100)/100};}
+function nutritionScore(cal,protein,carbs,fat){let s=50;if(protein>=20)s+=15;else if(protein>=10)s+=8;if(cal<=600)s+=10;else if(cal<=800)s+=5;else s-=5;if(fat<=25)s+=10;else if(fat>40)s-=10;if(carbs<=60)s+=10;else if(carbs>100)s-=5;const clamped=Math.max(0,Math.min(100,s+5));if(clamped>=80)return{score:clamped,grade:"A",color:"#2dd4a0"};if(clamped>=60)return{score:clamped,grade:"B",color:"#6c8cff"};if(clamped>=40)return{score:clamped,grade:"C",color:"#f0c674"};return{score:clamped,grade:"D",color:"#f87171"};}
+
+
+// ─── PEXELS IMAGE SYSTEM ────────────────────────────────────────────────
+var PEXELS_KEY="tVjUtBDJrpqZClXs6j38Yl8QYGzkxMm16QzrRqJPyH6y6shsH4bUr4Kh";
+var imgMemCache={};
+try{var stored=localStorage.getItem("ps_pexels_v3");if(stored)imgMemCache=JSON.parse(stored);}catch(e){}
+function saveImgCache(){try{localStorage.setItem("ps_pexels_v3",JSON.stringify(imgMemCache));}catch(e){}}
+
+// Map recipe names to specific food photography search terms
+var DISH_MAP={
+  "chicken":"grilled chicken plate","steak":"grilled steak dinner","salmon":"baked salmon fillet","shrimp":"cooked shrimp plate",
+  "lamb":"lamb chops plate","pork":"pork chops dinner","tofu":"crispy tofu bowl","tuna":"tuna steak plate","turkey":"roasted turkey",
+  "beef":"beef stir fry","duck":"roasted duck","halibut":"pan seared halibut","cod":"baked cod fish","tilapia":"pan fried tilapia",
+  "trout":"grilled trout","scallops":"seared scallops plate","swordfish":"grilled swordfish",
+  "pasta":"pasta dish plate","carbonara":"spaghetti carbonara","spaghetti":"spaghetti plate","penne":"penne pasta dish",
+  "linguine":"linguine pasta","ziti":"baked ziti casserole","gnocchi":"gnocchi dish","tortellini":"tortellini plate",
+  "orzo":"orzo pasta bowl","ravioli":"ravioli plate",
+  "tacos":"tacos plate","taco":"tacos plate","burrito":"burrito plate","quesadilla":"cheese quesadilla",
+  "fajitas":"chicken fajitas sizzling","enchiladas":"enchiladas plate","nachos":"loaded nachos",
+  "pizza":"pizza margherita","risotto":"mushroom risotto bowl","curry":"curry rice bowl","stir-fry":"vegetable stir fry",
+  "stir fry":"vegetable stir fry","soup":"bowl of soup","stew":"beef stew bowl","chili":"bowl of chili",
+  "salad":"fresh salad bowl","wrap":"chicken wrap","sandwich":"deli sandwich","burger":"hamburger",
+  "bowl":"grain bowl food","noodles":"asian noodles bowl","pad thai":"pad thai noodles",
+  "pancakes":"stack of pancakes","french toast":"french toast breakfast","omelette":"omelette breakfast plate",
+  "oats":"overnight oats jar","smoothie":"smoothie bowl","acai":"acai bowl","toast":"avocado toast plate",
+  "fried rice":"fried rice plate","poke":"poke bowl","gyro":"gyro plate","shakshuka":"shakshuka eggs",
+  "meatballs":"meatballs marinara","risotto":"creamy risotto","mac cheese":"mac and cheese bowl",
+  "stuffed":"stuffed peppers plate","lentil":"lentil soup bowl","minestrone":"minestrone soup bowl",
+  "pulled pork":"pulled pork sandwich","sweet potato":"loaded sweet potato",
+  "cauliflower":"roasted cauliflower dish","brussels":"roasted brussels sprouts","eggplant":"roasted eggplant",
+  "chickpea":"chickpea curry bowl","quinoa":"quinoa salad bowl",
+  "skewers":"meat skewers grilled","sliders":"mini burger sliders","bites":"appetizer bites plate",
+  "rolls":"fresh spring rolls","gazpacho":"gazpacho soup","ceviche":"ceviche dish",
+  "ribs":"bbq ribs plate","brisket":"smoked brisket","wings":"chicken wings plate",
+  "masala":"chicken tikka masala","tikka":"chicken tikka masala",
+};
+function searchQuery(name){
+  var lo=name.toLowerCase();
+  // Try to find a matching dish type
+  var keys=Object.keys(DISH_MAP);
+  for(var i=0;i<keys.length;i++){
+    if(lo.indexOf(keys[i])!==-1)return DISH_MAP[keys[i]];
+  }
+  // Fallback: use first 2 meaningful words + "plated dish"
+  var words=name.split(/\s+/).filter(function(w){
+    return w.length>2 && ["with","and","the","style","classic"].indexOf(w.toLowerCase())===-1;
+  });
+  return words.slice(0,2).join(" ")+" plated food dish";
+}
+
+var fetchQueue=[];
+var fetching=false;
+function processQueue(){
+  if(fetching||fetchQueue.length===0)return;
+  fetching=true;
+  var item=fetchQueue.shift();
+  fetch("https://api.pexels.com/v1/search?query="+encodeURIComponent(item.q)+"&per_page=1&orientation=landscape",{
+    headers:{"Authorization":PEXELS_KEY}
+  }).then(function(r){return r.json();}).then(function(data){
+    if(data.photos&&data.photos.length>0){
+      var photo=data.photos[0];
+      var result={url:photo.src.medium,thumb:photo.src.small,photographer:photo.photographer};
+      imgMemCache[item.q]=result;
+      saveImgCache();
+      item.resolve(result);
+    }else{item.resolve(null);}
+  }).catch(function(err){console.log("PantrySpark img error:",err);item.resolve(null);}).finally(function(){
+    fetching=false;
+    setTimeout(processQueue,200);
+  });
+}
+function fetchFoodImage(recipeName){
+  var q=searchQuery(recipeName);
+  if(imgMemCache[q])return Promise.resolve(imgMemCache[q]);
+  return new Promise(function(resolve){
+    fetchQueue.push({q:q,resolve:resolve});
+    processQueue();
+  });
+}
+
+function useRecipeImage(recipeName,hasCustomPhoto){
+  const[img,setImg]=useState(function(){
+    if(hasCustomPhoto)return null;
+    var q=searchQuery(recipeName);
+    return imgMemCache[q]||null;
+  });
+  useEffect(function(){
+    if(hasCustomPhoto)return;
+    if(img)return;
+    var cancelled=false;
+    fetchFoodImage(recipeName).then(function(r){
+      if(!cancelled&&r)setImg(r);
+    });
+    return function(){cancelled=true;};
+  },[recipeName,hasCustomPhoto]);
+  return img;
+}
+
+// ─── DONUT CHART COMPONENT ──────────────────────────────────────────────
+function DonutChart({value,max,size=120,strokeWidth=10,color,label,sublabel}){
+  const T=useT();const r=(size-strokeWidth)/2;const circ=2*Math.PI*r;const pct=Math.min(value/max,1);const offset=circ*(1-pct);
+  return(<div style={{textAlign:"center"}}><svg width={size} height={size} style={{transform:"rotate(-90deg)"}}><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={T.ringTrack} strokeWidth={strokeWidth}/><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{transition:"stroke-dashoffset 0.6s ease"}}/></svg><div style={{marginTop:-size/2-8,position:"relative",height:size/2+8}}><div style={{fontSize:20,fontWeight:700,color:T.silverBright}}>{value}</div><div style={{fontSize:10,color:T.silverMuted}}>/ {max}</div></div><div style={{fontSize:12,fontWeight:600,color:T.silver,marginTop:4}}>{label}</div>{sublabel&&<div style={{fontSize:10,color:T.silverMuted}}>{sublabel}</div>}</div>);
+}
+
+// ─── MACRO BAR ──────────────────────────────────────────────────────────
+function MacroBar({label,value,max,color,unit="g"}){
+  const T=useT();const pct=Math.min((value/max)*100,100);
+  return(<div style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3,color:T.silverMuted}}><span>{label}</span><span style={{fontWeight:600,color:pct>90?color:T.silverMuted}}>{value}{unit} / {max}{unit}</span></div><div style={{height:6,background:T.ringTrack,borderRadius:3,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:color,borderRadius:3,transition:"width 0.5s ease"}}/></div></div>);
+}
+
+// ─── WEEKLY BAR CHART ───────────────────────────────────────────────────
+function WeeklyBarChart({data,max,color,label}){
+  const T=useT();const days=["M","T","W","T","F","S","S"];
+  return(<div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:12}}>{label}</div><div style={{display:"flex",gap:6,alignItems:"flex-end",height:80}}>{data.map((v,i)=>{const h=Math.max((v/max)*70,2);return(<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}><div style={{fontSize:9,color:T.silverMuted,fontWeight:600}}>{v||""}</div><div style={{width:"100%",height:h,background:v>0?color:T.ringTrack,borderRadius:4,transition:"height 0.4s ease"}}/><div style={{fontSize:10,color:T.silverMuted}}>{days[i]}</div></div>);})}</div></div>);
+}
+
+// ─── STREAK TRACKER ─────────────────────────────────────────────────────
+function StreakTracker({streak,best}){
+  const T=useT();
+  return(<div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,textAlign:"center"}}><div style={{fontSize:36}}>🔥</div><div style={{fontSize:28,fontWeight:800,color:T.accent1,marginTop:4}}>{streak}</div><div style={{fontSize:12,color:T.silverMuted}}>day streak</div><div style={{fontSize:11,color:T.silverMuted,marginTop:8}}>Best: {best} days</div></div>);
+}
+
+// ─── AD BANNER ──────────────────────────────────────────────────────────
+function AdBanner({variant}){const T=useT();const h={leaderboard:56,sidebar:180,inline:72}[variant]||72;return(<div style={{width:"100%",height:h,margin:variant==="inline"?"14px 0":"0 0 16px 0",background:`linear-gradient(135deg, ${T.surfaceAlt}, ${T.surface})`,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",border:`1px dashed ${T.border}`,position:"relative"}}><div style={{textAlign:"center",color:T.textMuted,fontSize:11}}><div style={{fontSize:9,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:2}}>Advertisement</div><div style={{fontSize:11,color:T.silverMuted}}>Ad Space — {variant}</div></div><div style={{position:"absolute",top:5,right:7,fontSize:8,color:T.textMuted,background:T.surface,padding:"1px 5px",borderRadius:3,border:`1px solid ${T.border}`}}>AD</div></div>);}
+function PremiumBadge(){const T=useT();return <span style={{display:"inline-flex",alignItems:"center",gap:3,background:T.gradPremium,color:"#fff",fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,textTransform:"uppercase",letterSpacing:"0.06em"}}>👑 PRO</span>;}
+
+// ─── INGREDIENT CHIP ────────────────────────────────────────────────────
+function IngredientChip({name,onRemove}){const T=useT();const[h,setH]=useState(false);return(<div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{display:"inline-flex",alignItems:"center",gap:5,background:h?T.accent1Bg:T.surface,border:`1px solid ${h?T.accent1Dim:T.border}`,borderRadius:20,padding:"5px 10px 5px 12px",fontSize:12,color:T.text,transition:"all 0.15s"}}><span style={{width:6,height:6,borderRadius:"50%",background:T.accent1}}/>{name}<button onClick={onRemove} style={{width:16,height:16,borderRadius:"50%",border:"none",background:h?T.accent1:T.surfaceAlt,color:h?"#fff":T.silverMuted,fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>×</button></div>);}
+
+// ─── RECIPE CARD (with calories + nutrition score + Unsplash images) ─────
+function RecipeCard({recipe,matchPct,onOpen,selected,locked,servingOverride}){
+  const T=useT();const[h,setH]=useState(false);
+  const pxImg=useRecipeImage(recipe.name,!!recipe.photo);
+  const imgUrl=recipe.photo||pxImg&&pxImg.url||null;
+  const hasImg=!!imgUrl;
+  const sv=servingOverride||recipe.servings;
+  const scaledCal=Math.round(recipe.cal*(sv/recipe.servings));
+  const ns=nutritionScore(recipe.cal,recipe.protein,recipe.carbs,recipe.fat);
+  const[imgError,setImgError]=useState(false);
+  const showImg=hasImg&&!imgError;
+  return(<div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} onClick={()=>!locked&&onOpen(recipe)} style={{background:selected?T.accent1Bg:h?T.surfaceHover:T.surface,border:selected?`2px solid ${T.accent1}`:`1px solid ${T.border}`,borderRadius:14,overflow:"hidden",cursor:locked?"not-allowed":"pointer",transition:"all 0.2s",position:"relative",transform:h&&!locked?"translateY(-2px)":"none",boxShadow:h&&!locked?T.cardShadowHover:T.cardShadow,opacity:locked?0.6:1}}>
+    {showImg?(<div style={{width:"100%",height:130,overflow:"hidden",background:T.surfaceAlt,position:"relative"}}><img src={imgUrl} alt={recipe.name} onError={()=>setImgError(true)} style={{width:"100%",height:"100%",objectFit:"cover",transition:"transform 0.3s",transform:h?"scale(1.05)":"scale(1)"}}/><div style={{position:"absolute",bottom:0,left:0,right:0,height:40,background:"linear-gradient(transparent,rgba(0,0,0,0.5))"}}/>
+      {pxImg&&!recipe.photo&&<div style={{position:"absolute",bottom:4,left:8,fontSize:8,color:"rgba(255,255,255,0.7)"}}>Pexels</div>}
+    </div>):(<div style={{width:"100%",height:60,background:T.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>{recipe.img||"🍽️"}</div>)}
+    {selected&&<div style={{position:"absolute",top:8,right:8,width:22,height:22,borderRadius:"50%",background:T.accent1,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,zIndex:2}}>✓</div>}
+    {locked&&<div style={{position:"absolute",top:8,right:8,zIndex:2}}><PremiumBadge/></div>}
+    {recipe.isCustom&&<div style={{position:"absolute",top:8,left:8,zIndex:2}}><span style={{fontSize:9,padding:"2px 7px",borderRadius:10,background:"rgba(0,0,0,0.5)",color:"#fff",fontWeight:600}}>MY RECIPE</span></div>}
+    <div style={{padding:"10px 14px 12px"}}>
+      <div style={{fontWeight:600,fontSize:13,color:T.text,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
+      <div style={{display:"flex",gap:6,fontSize:11,color:T.silverMuted,marginBottom:4,flexWrap:"wrap",alignItems:"center"}}>
+        <span>⏱{recipe.time}m</span>
+        <span style={{fontWeight:700,color:T.gold}}>🔥{scaledCal} cal</span>
+        <span>💪{recipe.protein}g</span>
+        <span>👥{sv}</span>
+        <span style={{fontWeight:700,color:ns.color,fontSize:10,padding:"1px 5px",borderRadius:6,background:`${ns.color}18`}}>{ns.grade}</span>
+      </div>
+      {matchPct!==undefined&&(<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><div style={{flex:1,height:4,background:T.surfaceAlt,borderRadius:2,overflow:"hidden"}}><div style={{width:`${matchPct}%`,height:"100%",background:matchPct>80?T.accent1:matchPct>50?T.gold:T.danger,borderRadius:2,transition:"width 0.4s"}}/></div><span style={{fontSize:11,fontWeight:600,color:matchPct>80?T.accent1:matchPct>50?T.gold:T.danger}}>{matchPct}%</span></div>)}
+      <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{recipe.tags.slice(0,3).map(t=><span key={t} style={{fontSize:9,padding:"2px 6px",borderRadius:10,background:T.surfaceAlt,color:T.silverMuted,border:`1px solid ${T.border}`}}>{t}</span>)}</div>
+    </div>
+  </div>);
+}
+
+// ─── RECIPE DETAIL MODAL ────────────────────────────────────────────────
+function RecipeDetailModal({recipe,onClose,onAddToPlan,isInPlan,myIngs}){
+  const T=useT();const[sv,setSv]=useState(recipe.servings);
+  const pxImg=useRecipeImage(recipe.name,!!recipe.photo);
+  const imgUrl=recipe.photo||pxImg&&pxImg.url||null;
+  const ns=nutritionScore(recipe.cal,recipe.protein,recipe.carbs,recipe.fat);
+  const ratio=sv/recipe.servings;
+  return(
+    <div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:20,maxWidth:520,width:"100%",maxHeight:"88vh",overflowY:"auto",border:`1px solid ${T.border}`,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
+        {/* Hero */}
+        {imgUrl?(<div style={{width:"100%",height:220,overflow:"hidden",borderRadius:"20px 20px 0 0",position:"relative"}}><img src={imgUrl} alt={recipe.name} onError={function(e){e.target.style.display="none";}} style={{width:"100%",height:"100%",objectFit:"cover"}}/><div style={{position:"absolute",bottom:0,left:0,right:0,height:60,background:"linear-gradient(transparent,rgba(0,0,0,0.6))"}}/>
+          {!recipe.photo&&<div style={{position:"absolute",bottom:8,left:12,fontSize:10,color:"rgba(255,255,255,0.8)"}}>Pexels</div>}
+        </div>):(<div style={{width:"100%",height:120,background:T.surfaceAlt,borderRadius:"20px 20px 0 0",display:"flex",alignItems:"center",justifyContent:"center",fontSize:56}}>{recipe.img||"🍽️"}</div>)}
+
+        <div style={{padding:"20px 24px 24px"}}>
+          {/* Title + badges */}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+            <h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright,flex:1}}>{recipe.name}</h2>
+            <span style={{fontWeight:700,color:ns.color,fontSize:12,padding:"3px 8px",borderRadius:8,background:`${ns.color}18`}}>Grade {ns.grade}</span>
+            {recipe.isCustom&&<span style={{fontSize:10,padding:"3px 8px",borderRadius:8,background:T.accent2Bg,color:T.accent2,fontWeight:600}}>MY RECIPE</span>}
+          </div>
+
+          {/* Tags */}
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}}>
+            {recipe.tags.map(t=><span key={t} style={{fontSize:10,padding:"3px 8px",borderRadius:10,background:T.surfaceAlt,color:T.silverMuted,border:`1px solid ${T.border}`}}>{t}</span>)}
+          </div>
+
+          {/* Quick stats */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:18}}>
+            <div style={{textAlign:"center",padding:10,background:T.surfaceAlt,borderRadius:10}}><div style={{fontSize:18,fontWeight:700,color:T.gold}}>{Math.round(recipe.cal*ratio)}</div><div style={{fontSize:10,color:T.silverMuted}}>calories</div></div>
+            <div style={{textAlign:"center",padding:10,background:T.surfaceAlt,borderRadius:10}}><div style={{fontSize:18,fontWeight:700,color:T.accent1}}>{Math.round(recipe.protein*ratio)}g</div><div style={{fontSize:10,color:T.silverMuted}}>protein</div></div>
+            <div style={{textAlign:"center",padding:10,background:T.surfaceAlt,borderRadius:10}}><div style={{fontSize:18,fontWeight:700,color:T.accent2}}>{Math.round(recipe.carbs*ratio)}g</div><div style={{fontSize:10,color:T.silverMuted}}>carbs</div></div>
+            <div style={{textAlign:"center",padding:10,background:T.surfaceAlt,borderRadius:10}}><div style={{fontSize:18,fontWeight:700,color:T.accent3}}>{Math.round(recipe.fat*ratio)}g</div><div style={{fontSize:10,color:T.silverMuted}}>fat</div></div>
+          </div>
+
+          {/* Serving adjuster */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,padding:"10px 14px",background:T.surfaceAlt,borderRadius:10}}>
+            <span style={{fontSize:13,fontWeight:600,color:T.silverBright}}>Servings</span>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <button onClick={()=>setSv(Math.max(1,sv-1))} style={{width:30,height:30,borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>−</button>
+              <span style={{fontSize:18,fontWeight:700,color:T.accent1,minWidth:24,textAlign:"center"}}>{sv}</span>
+              <button onClick={()=>setSv(sv+1)} style={{width:30,height:30,borderRadius:8,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>+</button>
+            </div>
+          </div>
+
+          {/* Prep time + original servings */}
+          <div style={{display:"flex",gap:16,marginBottom:14,fontSize:12,color:T.silverMuted}}>
+            <span>⏱ Prep time: <strong style={{color:T.silver}}>{recipe.time} min</strong></span>
+            <span>👥 Base servings: <strong style={{color:T.silver}}>{recipe.servings}</strong></span>
+          </div>
+
+          {/* Ingredients list */}
+          <div style={{marginBottom:18}}>
+            <div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:10}}>Ingredients {sv!==recipe.servings&&<span style={{fontSize:11,color:T.accent1,fontWeight:500}}>(scaled for {sv})</span>}</div>
+            <div style={{display:"grid",gap:4}}>
+              {recipe.ingredients.map((ing,i)=>{
+                const have=myIngs?userHas(ing.n,myIngs):false;
+                const scaled=scaleIng(ing,recipe.servings,sv);
+                return(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:8,background:have?T.accent1Bg:T.surfaceAlt,border:have?`1px solid ${T.accent1Dim}`:`1px solid transparent`}}>
+                    <span style={{fontSize:14}}>{CAT_ICONS[ing.cat]||"📦"}</span>
+                    <span style={{flex:1,fontSize:13,color:have?T.accent1:T.text,textDecoration:have?"line-through":"none"}}>{ing.n}</span>
+                    {have&&<span style={{fontSize:9,color:T.accent1,fontWeight:700}}>IN PANTRY</span>}
+                    <span style={{fontSize:12,color:T.silverMuted,fontWeight:500}}>{fmtAmt(scaled.a,scaled.u)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>{onAddToPlan(recipe);onClose();}} style={{flex:1,background:isInPlan?T.dangerBg:T.gradAccent,color:isInPlan?T.danger:"#fff",border:isInPlan?`1px solid ${T.danger}44`:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:600,cursor:"pointer"}}>
+              {isInPlan?"✕ Remove from Plan":"+ Add to Meal Plan"}
+            </button>
+            <button onClick={onClose} style={{background:T.surfaceAlt,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 20px",fontSize:13,color:T.silverMuted,cursor:"pointer"}}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SHOPPING CATEGORY ──────────────────────────────────────────────────
+function ShoppingCategory({cat,items,checked,onToggle}){const T=useT();return(<div style={{marginBottom:20}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><span style={{fontSize:16}}>{CAT_ICONS[cat]}</span><span style={{fontSize:13,fontWeight:600,color:CAT_COLORS[cat],textTransform:"uppercase",letterSpacing:"0.04em"}}>{cat}</span><span style={{fontSize:11,color:T.textMuted}}>({items.length})</span></div>{items.map((item,i)=>(<div key={i} onClick={()=>onToggle(item.n)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,cursor:"pointer",marginBottom:2,background:checked[item.n]?T.surfaceAlt:"transparent",transition:"all 0.15s"}}><div style={{width:18,height:18,borderRadius:5,flexShrink:0,border:checked[item.n]?"none":`2px solid ${T.borderLight}`,background:checked[item.n]?T.accent1:"transparent",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11}}>{checked[item.n]?"✓":""}</div><span style={{flex:1,fontSize:13,color:checked[item.n]?T.textMuted:T.text,textDecoration:checked[item.n]?"line-through":"none"}}>{item.n}</span><span style={{fontSize:11,color:T.textMuted}}>{fmtAmt(item.a,item.u)}</span></div>))}</div>);}
+
+// ─── RECIPE UPLOAD FORM ─────────────────────────────────────────────────
+function RecipeUploadForm({onSave,onCancel,nextId}){const T=useT();const[form,setForm]=useState({name:"",time:"",servings:"",cal:"",protein:"",carbs:"",fat:"",tags:"",photo:null,ingredients:[{n:"",a:"",u:"pcs",cat:"Produce"}]});const fileRef=useRef(null);const set=(k,v)=>setForm(p=>({...p,[k]:v}));const handlePhoto=(e)=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(ev)=>set("photo",ev.target.result);reader.readAsDataURL(file);};const addIng=()=>setForm(p=>({...p,ingredients:[...p.ingredients,{n:"",a:"",u:"pcs",cat:"Produce"}]}));const removeIng=(i)=>setForm(p=>({...p,ingredients:p.ingredients.filter((_,idx)=>idx!==i)}));const setIng=(i,k,v)=>setForm(p=>{const ings=[...p.ingredients];ings[i]={...ings[i],[k]:v};return{...p,ingredients:ings};});const canSave=form.name&&form.ingredients.some(i=>i.n);
+  const save=()=>{onSave({id:nextId,name:form.name,img:"🍽️",photo:form.photo||null,time:parseInt(form.time)||15,servings:parseInt(form.servings)||2,cal:parseInt(form.cal)||300,protein:parseInt(form.protein)||15,carbs:parseInt(form.carbs)||30,fat:parseInt(form.fat)||12,tags:form.tags.split(",").map(t=>t.trim().toLowerCase()).filter(Boolean),ingredients:form.ingredients.filter(i=>i.n).map(i=>({n:i.n,a:parseFloat(i.a)||1,u:i.u||"pcs",cat:i.cat})),isCustom:true});};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,outline:"none",background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"};const lbl={fontSize:11,fontWeight:600,color:T.silverMuted,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4,display:"block"};
+  return(<div style={{background:T.surface,borderRadius:16,border:`1px solid ${T.border}`,padding:24}}><h3 style={{margin:"0 0 20px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Add Your Recipe</h3><div style={{marginBottom:20}}><label style={lbl}>Recipe Photo</label><div onClick={()=>fileRef.current&&fileRef.current.click()} style={{width:"100%",height:form.photo?200:120,borderRadius:12,border:form.photo?"none":`2px dashed ${T.borderLight}`,background:form.photo?"none":T.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",position:"relative"}}>{form.photo?<img src={form.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{textAlign:"center",color:T.textMuted}}><div style={{fontSize:28,marginBottom:4}}>📷</div><div style={{fontSize:12}}>Click to upload a photo</div></div>}</div><input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/></div><div style={{marginBottom:14}}><label style={lbl}>Recipe Name *</label><input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Grandma's Lasagna" style={inp}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}><div><label style={lbl}>Prep (min)</label><input type="number" value={form.time} onChange={e=>set("time",e.target.value)} placeholder="15" style={inp}/></div><div><label style={lbl}>Servings</label><input type="number" value={form.servings} onChange={e=>set("servings",e.target.value)} placeholder="4" style={inp}/></div><div><label style={lbl}>Calories</label><input type="number" value={form.cal} onChange={e=>set("cal",e.target.value)} placeholder="400" style={inp}/></div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}><div><label style={lbl}>Protein (g)</label><input type="number" value={form.protein} onChange={e=>set("protein",e.target.value)} placeholder="20" style={inp}/></div><div><label style={lbl}>Carbs (g)</label><input type="number" value={form.carbs} onChange={e=>set("carbs",e.target.value)} placeholder="30" style={inp}/></div><div><label style={lbl}>Fat (g)</label><input type="number" value={form.fat} onChange={e=>set("fat",e.target.value)} placeholder="15" style={inp}/></div></div><div style={{marginBottom:18}}><label style={lbl}>Tags</label><input value={form.tags} onChange={e=>set("tags",e.target.value)} placeholder="dinner, comfort, italian" style={inp}/></div><div style={{marginBottom:18}}><label style={lbl}>Ingredients *</label>{form.ingredients.map((ing,i)=>(<div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}><input value={ing.n} onChange={e=>setIng(i,"n",e.target.value)} placeholder="Ingredient" style={{...inp,flex:2}}/><input value={ing.a} onChange={e=>setIng(i,"a",e.target.value)} placeholder="Amt" style={{...inp,flex:0.7,minWidth:50}}/><select value={ing.u} onChange={e=>setIng(i,"u",e.target.value)} style={{...inp,flex:0.7,minWidth:60}}>{["pcs","cups","cup","tbsp","tsp","oz","lb","lbs","can","slices","cloves","bunch","head","stalks","leaves","sprigs"].map(u=><option key={u} value={u}>{u}</option>)}</select><select value={ing.cat} onChange={e=>setIng(i,"cat",e.target.value)} style={{...inp,flex:0.8,minWidth:75}}>{CATS_LIST.map(c=><option key={c} value={c}>{c}</option>)}</select>{form.ingredients.length>1&&<button onClick={()=>removeIng(i)} style={{width:24,height:24,borderRadius:"50%",border:`1px solid ${T.border}`,background:T.surfaceAlt,color:T.danger,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0}}>×</button>}</div>))}<button onClick={addIng} style={{background:"none",border:`1px dashed ${T.borderLight}`,borderRadius:8,padding:"8px",fontSize:12,color:T.silverMuted,cursor:"pointer",width:"100%"}}>+ Add ingredient</button></div><div style={{display:"flex",gap:10}}><button onClick={save} disabled={!canSave} style={{flex:1,background:canSave?T.gradAccent:T.surfaceAlt,color:canSave?"#fff":T.textMuted,border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:600,cursor:canSave?"pointer":"not-allowed"}}>Save Recipe</button><button onClick={onCancel} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 20px",fontSize:13,color:T.silverMuted,cursor:"pointer"}}>Cancel</button></div></div>);
+}
+
+// ─── AI PHOTO SCANNER ───────────────────────────────────────────────────
+function AIPhotoScanner({mode,onResult,onClose}){
+  const T=useT();const[photo,setPhoto]=useState(null);const[loading,setLoading]=useState(false);const[result,setResult]=useState(null);const[error,setError]=useState(null);const fileRef=useRef(null);
+  const handlePhoto=(e)=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(ev)=>setPhoto(ev.target.result);reader.readAsDataURL(file);};
+  const analyze=async()=>{if(!photo)return;setLoading(true);setError(null);
+    const prompt=mode==="calories"
+      ?"Analyze this food photo. Estimate the calories, protein (g), carbs (g), and fat (g). Respond ONLY with a JSON object like: {\"name\":\"food name\",\"calories\":000,\"protein\":00,\"carbs\":00,\"fat\":00,\"confidence\":\"high/medium/low\"}"
+      :"Extract the recipe from this photo. Include name, ingredients with amounts, prep time, servings, and estimated nutrition. Respond ONLY with JSON like: {\"name\":\"Recipe Name\",\"time\":30,\"servings\":4,\"calories\":400,\"protein\":20,\"carbs\":30,\"fat\":15,\"tags\":[\"dinner\"],\"ingredients\":[{\"name\":\"ingredient\",\"amount\":1,\"unit\":\"cup\",\"category\":\"Produce\"}]}";
+    try{
+      const base64=photo.split(",")[1];const mediaType=photo.split(";")[0].split(":")[1];
+      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mediaType,data:base64}},{type:"text",text:prompt}]}]})});
+      const data=await resp.json();var found=data.content&&data.content.find(c=>c.type==="text");const text=found?found.text:"";
+      const jsonMatch=text.match(/\{[\s\S]*\}/);if(jsonMatch){const parsed=JSON.parse(jsonMatch[0]);setResult(parsed);}else{setError("Could not parse response. Try a clearer photo.");}
+    }catch(err){setError("Analysis failed. Please try again.");}
+    setLoading(false);
+  };
+  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.inputBg,color:T.text};
+  return(
+    <div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:20,padding:28,maxWidth:480,width:"100%",maxHeight:"85vh",overflowY:"auto",border:`1px solid ${T.border}`}}>
+        <h3 style={{margin:"0 0 4px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{mode==="calories"?"📸 Snap to Track Calories":"📸 Scan Recipe from Photo"}</h3>
+        <p style={{margin:"0 0 16px",fontSize:13,color:T.silverMuted}}>{mode==="calories"?"Take a photo of your food to estimate calories and macros":"Photograph a recipe page, cookbook, or screen to import it"}</p>
+        <div onClick={()=>fileRef.current&&fileRef.current.click()} style={{width:"100%",height:photo?220:140,borderRadius:12,border:photo?"none":`2px dashed ${T.borderLight}`,background:photo?"none":T.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",overflow:"hidden",marginBottom:16}}>
+          {photo?<img src={photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{textAlign:"center",color:T.textMuted}}><div style={{fontSize:36,marginBottom:6}}>📷</div><div style={{fontSize:13}}>Tap to take or upload a photo</div></div>}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
+        {photo&&!result&&(<button onClick={analyze} disabled={loading} style={{width:"100%",background:loading?T.surfaceAlt:T.gradAccent,color:loading?T.silverMuted:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:600,cursor:loading?"wait":"pointer",marginBottom:12}}>{loading?"🔄 Analyzing with AI...":"✨ Analyze with AI"}</button>)}
+        {error&&<div style={{padding:12,borderRadius:8,background:T.dangerBg,color:T.danger,fontSize:13,marginBottom:12}}>{error}</div>}
+        {result&&mode==="calories"&&(
+          <div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:12}}>
+            <div style={{fontSize:16,fontWeight:700,color:T.silverBright,marginBottom:8}}>{result.name||"Food"}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{textAlign:"center",padding:8,background:T.surface,borderRadius:8}}><div style={{fontSize:20,fontWeight:700,color:T.gold}}>{result.calories}</div><div style={{fontSize:10,color:T.silverMuted}}>Calories</div></div>
+              <div style={{textAlign:"center",padding:8,background:T.surface,borderRadius:8}}><div style={{fontSize:20,fontWeight:700,color:T.accent1}}>{result.protein}g</div><div style={{fontSize:10,color:T.silverMuted}}>Protein</div></div>
+              <div style={{textAlign:"center",padding:8,background:T.surface,borderRadius:8}}><div style={{fontSize:20,fontWeight:700,color:T.accent2}}>{result.carbs}g</div><div style={{fontSize:10,color:T.silverMuted}}>Carbs</div></div>
+              <div style={{textAlign:"center",padding:8,background:T.surface,borderRadius:8}}><div style={{fontSize:20,fontWeight:700,color:T.accent3}}>{result.fat}g</div><div style={{fontSize:10,color:T.silverMuted}}>Fat</div></div>
+            </div>
+            {result.confidence&&<div style={{fontSize:11,color:T.silverMuted,marginTop:8,textAlign:"center"}}>Confidence: {result.confidence}</div>}
+            <button onClick={()=>{onResult(result);onClose();}} style={{width:"100%",background:T.gradAccent,color:"#fff",border:"none",padding:"10px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",marginTop:12}}>✓ Log This Meal</button>
+          </div>
+        )}
+        {result&&mode==="recipe"&&(
+          <div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:12}}>
+            <div style={{fontSize:16,fontWeight:700,color:T.silverBright,marginBottom:4}}>{result.name||"Extracted Recipe"}</div>
+            <div style={{fontSize:12,color:T.silverMuted,marginBottom:8}}>{result.ingredients&&result.ingredients.length||0} ingredients · {result.time||"?"}min · {result.calories||"?"} cal</div>
+            {result.ingredients&&<div style={{maxHeight:150,overflowY:"auto",marginBottom:8}}>{result.ingredients.map((ing,i)=><div key={i} style={{fontSize:12,color:T.silver,padding:"3px 0"}}>{ing.amount} {ing.unit} {ing.name}</div>)}</div>}
+            <button onClick={()=>{onResult(result);onClose();}} style={{width:"100%",background:T.gradAccent,color:"#fff",border:"none",padding:"10px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer"}}>✓ Add to My Recipes</button>
+          </div>
+        )}
+        <button onClick={onClose} style={{width:"100%",background:"none",border:`1px solid ${T.border}`,borderRadius:8,padding:"10px",fontSize:13,color:T.silverMuted,cursor:"pointer"}}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── MEASUREMENT CONVERTER ──────────────────────────────────────────────
+function MeasurementConverter({cats,init}){
+  var T=useT();
+  var[amount,setAmount]=useState(init.amount);
+  var[catIdx,setCatIdx]=useState(0);
+  var[convIdx,setConvIdx]=useState(0);
+  var[flipped,setFlipped]=useState(false);
+
+  var cat=cats[catIdx];
+  var conv=cat.conversions[convIdx];
+  var fromU=flipped?conv.to:conv.from;
+  var toU=flipped?conv.from:conv.to;
+
+  function calculate(val,conversion,flip){
+    var n=parseFloat(val);
+    if(isNaN(n))return"";
+    var f=conversion.factor;
+    if(f==="special_f_to_c")return flip?((n*9/5)+32).toFixed(1):(((n-32)*5/9).toFixed(1));
+    if(f==="special_c_to_f")return flip?((n-32)*5/9).toFixed(1):((n*9/5)+32).toFixed(1);
+    return flip?(n/f).toFixed(4).replace(/\.?0+$/,""):(n*f).toFixed(4).replace(/\.?0+$/,"");
+  }
+
+  var result=calculate(amount,conv,flipped);
+  var inp={width:"100%",padding:"12px 14px",borderRadius:10,border:"2px solid "+T.border,fontSize:18,outline:"none",background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif",fontWeight:600,textAlign:"center"};
+
+  return(
+    <div className="fade-up">
+      <h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Measurement Converter</h2>
+      <p style={{margin:"4px 0 16px",fontSize:12,color:T.silverMuted}}>Don't have the right measuring tool? Convert between units instantly.</p>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:4,marginBottom:16,flexWrap:"wrap"}}>
+        {cats.map(function(c,i){return(
+          <button key={c.name} onClick={function(){setCatIdx(i);setConvIdx(0);setFlipped(false);}} style={{padding:"7px 14px",borderRadius:8,border:"none",background:catIdx===i?T.gradAccent:T.surface,color:catIdx===i?"#fff":T.silverMuted,fontSize:12,fontWeight:catIdx===i?600:400,cursor:"pointer",borderWidth:1,borderStyle:"solid",borderColor:catIdx===i?"transparent":T.border}}>{c.name}</button>
+        );})}
+      </div>
+
+      {/* Conversion selector */}
+      <div style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,padding:20,marginBottom:16}}>
+        <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+          {cat.conversions.map(function(c,i){return(
+            <button key={i} onClick={function(){setConvIdx(i);setFlipped(false);}} style={{padding:"6px 12px",borderRadius:20,border:"1px solid "+(convIdx===i?T.accent1Dim:T.border),background:convIdx===i?T.accent1Bg:T.surfaceAlt,color:convIdx===i?T.accent1:T.silverMuted,fontSize:11,cursor:"pointer",fontWeight:convIdx===i?600:400}}>{c.icon} {c.from} → {c.to}</button>
+          );})}
+        </div>
+
+        {/* Converter UI */}
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,fontWeight:600,color:T.silverMuted,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{fromU}</div>
+            <input type="number" value={amount} onChange={function(e){setAmount(e.target.value);}} style={inp}/>
+          </div>
+
+          <button onClick={function(){setFlipped(!flipped);}} style={{width:40,height:40,borderRadius:"50%",border:"1px solid "+T.border,background:T.surfaceAlt,color:T.accent1,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0,marginTop:20}}>⇄</button>
+
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,fontWeight:600,color:T.silverMuted,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{toU}</div>
+            <div style={{padding:"12px 14px",borderRadius:10,background:T.accent1Bg,border:"2px solid "+T.accent1Dim,fontSize:18,fontWeight:700,color:T.accent1,textAlign:"center",minHeight:24}}>{result||"—"}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick reference cards */}
+      <h3 style={{margin:"0 0 10px",fontSize:15,fontWeight:600,color:T.silverBright}}>Common Kitchen Equivalents</h3>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[
+          {l:"1 cup",v:"16 tbsp = 48 tsp = 8 fl oz",icon:"🥤"},
+          {l:"1 tablespoon",v:"3 teaspoons = 15 ml",icon:"🥄"},
+          {l:"1 stick butter",v:"½ cup = 8 tbsp = 113g",icon:"🧈"},
+          {l:"1 pound",v:"16 oz = 454g",icon:"⚖️"},
+          {l:"1 cup flour",v:"≈ 120 grams",icon:"🌾"},
+          {l:"1 cup sugar",v:"≈ 200 grams",icon:"🍬"},
+          {l:"1 cup rice",v:"≈ 185 grams",icon:"🍚"},
+          {l:"1 clove garlic",v:"≈ ½ tsp minced",icon:"🧄"},
+          {l:"Pinch of salt",v:"≈ ⅛ teaspoon",icon:"🧂"},
+          {l:"Dash",v:"≈ ⅛ teaspoon (liquids)",icon:"💧"},
+          {l:"1 lemon juice",v:"≈ 3 tablespoons",icon:"🍋"},
+          {l:"1 lime juice",v:"≈ 2 tablespoons",icon:"🍈"},
+        ].map(function(item,i){return(
+          <div key={i} style={{background:T.surface,borderRadius:10,padding:12,border:"1px solid "+T.border}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <span style={{fontSize:16}}>{item.icon}</span>
+              <span style={{fontSize:13,fontWeight:600,color:T.silverBright}}>{item.l}</span>
+            </div>
+            <div style={{fontSize:11,color:T.silverMuted}}>{item.v}</div>
+          </div>
+        );})}
+      </div>
+
+      {/* Oven temp reference */}
+      <h3 style={{margin:"20px 0 10px",fontSize:15,fontWeight:600,color:T.silverBright}}>Oven Temperatures</h3>
+      <div style={{background:T.surface,borderRadius:12,border:"1px solid "+T.border,overflow:"hidden"}}>
+        {[
+          {name:"Very Low",f:"250°F",c:"120°C"},
+          {name:"Low",f:"300°F",c:"150°C"},
+          {name:"Moderate",f:"350°F",c:"175°C"},
+          {name:"Moderate Hot",f:"375°F",c:"190°C"},
+          {name:"Hot",f:"400°F",c:"200°C"},
+          {name:"Very Hot",f:"425°F",c:"220°C"},
+          {name:"Extremely Hot",f:"450°F",c:"230°C"},
+          {name:"Broil",f:"500°F",c:"260°C"},
+        ].map(function(t,i){return(
+          <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"10px 14px",borderBottom:i<7?"1px solid "+T.surfaceAlt:"none",fontSize:12}}>
+            <span style={{color:T.silver,fontWeight:500,flex:1}}>{t.name}</span>
+            <span style={{color:T.gold,fontWeight:600,width:70,textAlign:"center"}}>{t.f}</span>
+            <span style={{color:T.accent2,fontWeight:600,width:70,textAlign:"right"}}>{t.c}</span>
+          </div>
+        );})}
+      </div>
+
+      {/* Substitution tips */}
+      <h3 style={{margin:"20px 0 10px",fontSize:15,fontWeight:600,color:T.silverBright}}>No Measuring Tools? Use These</h3>
+      <div style={{display:"grid",gap:8}}>
+        {[
+          {tool:"No measuring cups",tip:"A standard coffee mug is roughly 1 cup (8 oz). A small yogurt container is about ¾ cup.",icon:"☕"},
+          {tool:"No tablespoon",tip:"A regular dining spoon is roughly 1 tablespoon. A large soup spoon is about 2 tablespoons.",icon:"🍽️"},
+          {tool:"No teaspoon",tip:"The tip of your index finger (first joint) holds about ¼ teaspoon. A regular small spoon is close to 1 teaspoon.",icon:"👆"},
+          {tool:"No kitchen scale",tip:"A baseball is roughly 8 oz. A deck of cards is about 3 oz of meat. A tennis ball is about ½ cup.",icon:"⚾"},
+          {tool:"No thermometer",tip:"For oil: drop a popcorn kernel in — it pops around 350°F. For water: tiny bubbles = 160°F, rolling boil = 212°F.",icon:"🌡️"},
+        ].map(function(s,i){return(
+          <div key={i} style={{background:T.surface,borderRadius:10,padding:14,border:"1px solid "+T.border,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <span style={{fontSize:24,flexShrink:0}}>{s.icon}</span>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:T.accent1,marginBottom:3}}>{s.tool}</div>
+              <div style={{fontSize:12,color:T.silverMuted,lineHeight:1.5}}>{s.tip}</div>
+            </div>
+          </div>
+        );})}
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+function App(){
+  // Persist view in URL hash so refresh stays on same page
+  function getInitialView(){
+    var hash=window.location.hash.replace("#","");
+    var valid=["pantry","suggestions","browse","upload","plan","shop","nutrition","connect","convert"];
+    return valid.indexOf(hash)!==-1?hash:"pantry";
+  }
+  const[theme,setThemeRaw]=useState(function(){try{return localStorage.getItem("ps_theme")||"dark";}catch(e){return "dark";}});
+  function setTheme(t){setThemeRaw(t);try{localStorage.setItem("ps_theme",t);}catch(e){}}
+  const[isPremium,setIsPremium]=useState(false);
+  const[view,setViewRaw]=useState(getInitialView);
+  function setView(v){setViewRaw(v);window.location.hash=v;}
+  useEffect(function(){
+    function onHash(){var h=window.location.hash.replace("#","");if(h)setViewRaw(h);}
+    window.addEventListener("hashchange",onHash);
+    return function(){window.removeEventListener("hashchange",onHash);};
+  },[]);
+  const[myIngs,setMyIngs]=useState([]);
+  const[ingInput,setIngInput]=useState("");
+  const[customs,setCustoms]=useState([]);
+  const[selected,setSelected]=useState([]);
+  const[servingOverrides,setServingOverrides]=useState({});
+  const[shopCheck,setShopCheck]=useState({});
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[showUpload,setShowUpload]=useState(false);
+  const[connectedApps,setConnectedApps]=useState({});
+  const[search,setSearch]=useState("");
+  const[tagF,setTagF]=useState("all");
+  const[expanded,setExpanded]=useState(null);
+  const[page,setPage]=useState(1);
+  const[aiScanner,setAiScanner]=useState(null); // null | "calories" | "recipe"
+  const[viewRecipe,setViewRecipe]=useState(null); // recipe object for detail modal
+  // Nutrition goals
+  const[goals,setGoals]=useState({calories:2000,protein:120,carbs:250,fat:65});
+  const[editGoals,setEditGoals]=useState(false);
+  // Calorie log: [{date,name,cal,protein,carbs,fat}]
+  const[calorieLog,setCalorieLog]=useState([]);
+  const[streak,setStreak]=useState(0);
+  const[bestStreak,setBestStreak]=useState(0);
+  const inpRef=useRef(null);
+  const T=THEMES[theme];
+
+  const premiumRecipes=useMemo(()=>genPremium(),[]);
+  const allRecipes=useMemo(()=>[...FREE_RECIPES,...customs,...(isPremium?premiumRecipes:[])],[customs,isPremium,premiumRecipes]);
+  const suggestions=ingInput.length>1?COMMON_INGREDIENTS.filter(i=>i.toLowerCase().includes(ingInput.toLowerCase())&&!myIngs.includes(i)).slice(0,6):[];
+  const addIng=(n)=>{if(!myIngs.includes(n))setMyIngs(p=>[...p,n]);setIngInput("");inpRef.current&&inpRef.current.focus();};
+  const matched=useMemo(()=>{if(!myIngs.length)return[];const ml=myIngs.map(i=>i.toLowerCase());return allRecipes.map(r=>{const t=r.ingredients.length;const m=r.ingredients.filter(ing=>ml.some(my=>ing.n.toLowerCase().includes(my)||my.includes(ing.n.toLowerCase()))).length;return{...r,matchPct:Math.round((m/t)*100)};}).filter(r=>r.matchPct>0).sort((a,b)=>b.matchPct-a.matchPct).slice(0,20);},[myIngs,allRecipes]);
+  const toggle=(r)=>setSelected(p=>p.find(x=>x.id===r.id)?p.filter(x=>x.id!==r.id):[...p,r]);
+  const getServings=(r)=>servingOverrides[r.id]||r.servings;
+  const setServings=(id,v)=>setServingOverrides(p=>({...p,[id]:Math.max(1,v)}));
+
+  // Shopping list: only missing items, scaled to serving overrides
+  const shopList=useMemo(()=>{const items={};selected.forEach(r=>{const sv=getServings(r);r.ingredients.forEach(ing=>{if(userHas(ing.n,myIngs))return;const k=ing.n.toLowerCase();const scaled=scaleIng(ing,r.servings,sv);if(!items[k])items[k]={...scaled,count:1};else{items[k].a+=scaled.a;items[k].count++;}});});return Object.values(items).sort((a,b)=>a.cat.localeCompare(b.cat));},[selected,myIngs,servingOverrides]);
+  const shopGroups={};shopList.forEach(i=>{if(!shopGroups[i.cat])shopGroups[i.cat]=[];shopGroups[i.cat].push(i);});
+
+  // Today's nutrition from log + selected recipes
+  const today=new Date().toISOString().slice(0,10);
+  const todayLog=calorieLog.filter(l=>l.date===today);
+  const todayFromLog=todayLog.reduce((a,l)=>({cal:a.cal+l.cal,protein:a.protein+l.protein,carbs:a.carbs+l.carbs,fat:a.fat+l.fat}),{cal:0,protein:0,carbs:0,fat:0});
+  const todayFromPlan=selected.reduce((a,r)=>{const sv=getServings(r);const ratio=sv/r.servings;return{cal:a.cal+Math.round(r.cal*ratio),protein:a.protein+Math.round(r.protein*ratio),carbs:a.carbs+Math.round(r.carbs*ratio),fat:a.fat+Math.round(r.fat*ratio)};},{cal:0,protein:0,carbs:0,fat:0});
+  const todayTotal={cal:todayFromLog.cal+todayFromPlan.cal,protein:todayFromLog.protein+todayFromPlan.protein,carbs:todayFromLog.carbs+todayFromPlan.carbs,fat:todayFromLog.fat+todayFromPlan.fat};
+
+  // Weekly data (simple: today's data repeated as demo)
+  const weekData=[0,0,0,0,0,0,0].map((_,i)=>i===new Date().getDay()-1?todayTotal.cal:todayLog.length>0?Math.round(todayTotal.cal*0.85):0);
+
+  // Log a meal from AI scanner or manual
+  const logMeal=(meal)=>{setCalorieLog(p=>[...p,{date:today,name:meal.name||"Meal",cal:meal.calories||0,protein:meal.protein||0,carbs:meal.carbs||0,fat:meal.fat||0}]);};
+  // Add recipe from AI scanner
+  const addAIRecipe=(data)=>{const r={id:2000+customs.length,name:data.name||"Scanned Recipe",img:"📸",photo:null,time:data.time||15,servings:data.servings||4,cal:data.calories||300,protein:data.protein||15,carbs:data.carbs||30,fat:data.fat||12,tags:data.tags||["imported"],ingredients:(data.ingredients||[]).map(i=>({n:i.name,a:i.amount||1,u:i.unit||"pcs",cat:i.category||"Produce"})),isCustom:true};setCustoms(p=>[...p,r]);};
+
+  const allTags=useMemo(()=>[...new Set(allRecipes.flatMap(r=>r.tags))].sort(),[allRecipes]);
+  const browsable=useMemo(()=>{let r=allRecipes;if(search)r=r.filter(x=>x.name.toLowerCase().includes(search.toLowerCase()));if(tagF!=="all")r=r.filter(x=>x.tags.includes(tagF));return r;},[allRecipes,search,tagF]);
+  const PAGE_SIZE=30;const browsablePage=browsable.slice(0,page*PAGE_SIZE);
+
+  const NAV=[
+    {key:"pantry",label:"Pantry",icon:"🧊"},
+    {key:"suggestions",label:"Suggest",icon:"✨",badge:matched.length||null},
+    {key:"browse",label:"Recipes",icon:"📖"},
+    {key:"upload",label:"Add",icon:"➕"},
+    {key:"plan",label:"Plan",icon:"📋",badge:selected.length||null},
+    {key:"shop",label:"Shop",icon:"🛒",badge:shopList.length||null},
+    {key:"nutrition",label:"Nutrition",icon:"📊"},
+    {key:"connect",label:"Connect",icon:"🔗"},
+    {key:"convert",label:"Convert",icon:"📐"},
+  ];
+
+  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,outline:"none",background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"};
+
+  return(
+    <ThemeCtx.Provider value={T}>
+    <div style={{minHeight:"100vh",background:T.bg,fontFamily:"'Manrope',sans-serif",color:T.text,transition:"background 0.3s, color 0.3s"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet"/>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${T.scrollThumb};border-radius:3px}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}.fade-up{animation:fadeUp 0.4s ease both}input::placeholder,select{color:${T.textMuted}}input:focus{border-color:${T.accent1} !important;outline:none}`}</style>
+
+      {/* HEADER */}
+      <div style={{background:T.gradHeader,padding:"16px 20px 10px",position:"sticky",top:0,zIndex:100,borderBottom:`1px solid ${T.border}`}}>
+        <div style={{maxWidth:1000,margin:"0 auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div>
+              <h1 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",fontWeight:700,background:T.gradAccent,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>PantrySpark</h1>
+              <p style={{margin:"1px 0 0",fontSize:10,color:T.silverMuted}}>{allRecipes.length.toLocaleString()} recipes · Your pantry sparks the ideas</p>
+            </div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>{theme==="dark"?"☀️":"🌙"}</button>
+              <button onClick={()=>setShowUpgrade(true)} style={{background:isPremium?T.gradPremium:"rgba(167,139,250,0.12)",border:isPremium?"none":"1px solid rgba(167,139,250,0.3)",color:"#fff",padding:"6px 12px",borderRadius:20,fontSize:10,fontWeight:600,cursor:"pointer"}}>{isPremium?"👑 Premium":"Upgrade"}</button>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:1,overflowX:"auto",paddingBottom:2}}>
+            {NAV.map(n=>(<button key={n.key} onClick={()=>{setView(n.key);if(n.key==="upload")setShowUpload(true);setPage(1);}} style={{padding:"7px 10px",border:"none",borderRadius:"7px 7px 0 0",background:view===n.key?T.bg:"transparent",color:view===n.key?T.accent1:T.silverMuted,fontWeight:view===n.key?600:400,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:3,fontFamily:"'Manrope',sans-serif",transition:"all 0.15s"}}><span style={{fontSize:13}}>{n.icon}</span><span>{n.label}</span>{n.badge&&<span style={{background:view===n.key?T.accent1:`${T.accent1}44`,color:"#fff",fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}</button>))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:1000,margin:"0 auto",padding:"16px 20px 60px"}}>
+        {!isPremium&&<AdBanner variant="leaderboard"/>}
+
+        {/* ═══ PANTRY ═══ */}
+        {view==="pantry"&&(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}><div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Pantry</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Add what you have — up to 20 recipe suggestions!</p></div>{myIngs.length>0&&matched.length>0&&(<button onClick={()=>setView("suggestions")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",animation:"pulse 2s infinite"}}>✨ {matched.length} Recipes →</button>)}</div>
+          <div style={{position:"relative",marginBottom:16}}><input ref={inpRef} value={ingInput} onChange={e=>setIngInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&ingInput.trim())addIng(ingInput.trim());}} placeholder="Type an ingredient..." style={{...inp,padding:"12px 16px",fontSize:14,borderRadius:12,border:`2px solid ${T.border}`}}/>{suggestions.length>0&&(<div style={{position:"absolute",top:"100%",left:0,right:0,background:T.surface,borderRadius:"0 0 12px 12px",border:`1px solid ${T.border}`,borderTop:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.2)",zIndex:50}}>{suggestions.map(s=>(<div key={s} onClick={()=>addIng(s)} style={{padding:"10px 16px",cursor:"pointer",fontSize:13,color:T.text,borderBottom:`1px solid ${T.surfaceAlt}`}} onMouseEnter={e=>e.target.style.background=T.accent1Bg} onMouseLeave={e=>e.target.style.background="transparent"}>{s}</div>))}</div>)}</div>
+          {myIngs.length>0?(<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>{myIngs.map(i=><IngredientChip key={i} name={i} onRemove={()=>setMyIngs(p=>p.filter(x=>x!==i))}/>)}<button onClick={()=>setMyIngs([])} style={{background:"none",border:`1px dashed ${T.borderLight}`,borderRadius:20,padding:"5px 12px",fontSize:11,color:T.textMuted,cursor:"pointer"}}>Clear</button></div>):(<div style={{background:T.surface,borderRadius:14,padding:28,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36,marginBottom:10}}>🧊</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginBottom:6}}>Pantry is empty</div><div style={{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap",marginTop:12}}>{["Chicken breast","Eggs","Rice","Garlic","Onion","Butter","Soy sauce","Olive oil"].map(i=>(<button key={i} onClick={()=>addIng(i)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${T.border}`,background:T.surfaceAlt,fontSize:11,cursor:"pointer",color:T.silver}}>+ {i}</button>))}</div></div>)}
+          {!isPremium&&myIngs.length>0&&<AdBanner variant="inline"/>}
+        </div>)}
+
+        {/* ═══ SUGGESTIONS ═══ */}
+        {view==="suggestions"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Suggestions <span style={{fontSize:13,color:T.accent1}}>({matched.length})</span></h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Based on {myIngs.length} ingredients — tap to select</p>
+          {matched.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>🔍</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}><button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Add ingredients</button></div></div>):(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{matched.map((r,i)=>(<React.Fragment key={r.id}><RecipeCard recipe={r} matchPct={r.matchPct} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)}/>{!isPremium&&i===5&&<div style={{gridColumn:"1/-1"}}><AdBanner variant="inline"/></div>}</React.Fragment>))}</div>)}
+          {selected.length>0&&(<div style={{position:"sticky",bottom:14,background:T.surface,borderRadius:12,padding:"12px 18px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 30px rgba(0,0,0,0.3)",border:`1px solid ${T.border}`}}><span style={{fontWeight:600,fontSize:13,color:T.silverBright}}>{selected.length} selected</span><button onClick={()=>setView("plan")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>View Plan →</button></div>)}
+        </div>)}
+
+        {/* ═══ BROWSE ═══ */}
+        {view==="browse"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>All Recipes</h2><p style={{margin:"0 0 12px",fontSize:12,color:T.silverMuted}}>{isPremium?`${allRecipes.length.toLocaleString()} recipes`:`${FREE_RECIPES.length} free`}{!isPremium&&<span> · <button onClick={()=>setShowUpgrade(true)} style={{color:T.accent3,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:12}}>Unlock 1,000+</button></span>}</p>
+          <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search..." style={{...inp,flex:1,minWidth:160}}/><select value={tagF} onChange={e=>{setTagF(e.target.value);setPage(1);}} style={{...inp,width:"auto"}}><option value="all">All tags</option>{allTags.map(t=><option key={t} value={t}>{t}</option>)}</select><button onClick={()=>{setView("upload");setShowUpload(true);}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ Add</button></div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{browsablePage.map((r,i)=>(<React.Fragment key={r.id}><RecipeCard recipe={r} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)} locked={r.isPremiumOnly&&!isPremium}/>{!isPremium&&i===11&&<div style={{gridColumn:"1/-1"}}><AdBanner variant="inline"/></div>}</React.Fragment>))}</div>
+          {browsablePage.length<browsable.length&&(<div style={{textAlign:"center",marginTop:16}}><button onClick={()=>setPage(p=>p+1)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 28px",fontSize:12,color:T.silver,cursor:"pointer"}}>Load more ({browsable.length-browsablePage.length})</button></div>)}
+          {selected.length>0&&(<div style={{position:"sticky",bottom:14,background:T.surface,borderRadius:12,padding:"12px 18px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 30px rgba(0,0,0,0.3)",border:`1px solid ${T.border}`}}><span style={{fontWeight:600,fontSize:13,color:T.silverBright}}>{selected.length} in plan</span><button onClick={()=>setView("plan")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>View Plan →</button></div>)}
+        </div>)}
+
+        {/* ═══ UPLOAD ═══ */}
+        {view==="upload"&&(<div className="fade-up">
+          {showUpload?(<RecipeUploadForm onSave={(r)=>{setCustoms(p=>[...p,r]);setShowUpload(false);}} onCancel={()=>{setShowUpload(false);setView("browse");}} nextId={2000+customs.length}/>):(
+          <div style={{textAlign:"center",padding:32}}>
+            <div style={{fontSize:40,marginBottom:10}}>📝</div>
+            <h2 style={{fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright,marginBottom:6}}>Your Recipes</h2>
+            <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>
+              <button onClick={()=>setShowUpload(true)} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Manual Entry</button>
+              <button onClick={()=>setAiScanner("recipe")} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>📸 Scan from Photo</button>
+            </div>
+            {customs.length>0&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10,textAlign:"left"}}>{customs.map(r=><RecipeCard key={r.id} recipe={r} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)}/>)}</div>)}
+          </div>)}
+        </div>)}
+
+        {/* ═══ PLAN (with serving size adjuster) ═══ */}
+        {view==="plan"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Meal Plan</h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Adjust servings — ingredients auto-calculate</p>
+          {selected.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}>Go to <button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Pantry</button> or <button onClick={()=>setView("browse")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Browse</button></div></div>):(
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:16}}>
+              {[{l:"Recipes",v:selected.length,c:T.accent1},{l:"Total Cal",v:todayFromPlan.cal,c:T.gold},{l:"Avg Protein",v:Math.round(selected.reduce((s,r)=>s+r.protein,0)/selected.length)+"g",c:T.accent2},{l:"Total Time",v:selected.reduce((s,r)=>s+r.time,0)+"m",c:T.accent3}].map((s,i)=>(<div key={i} style={{background:T.surface,borderRadius:10,padding:12,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:T.silverMuted}}>{s.l}</div></div>))}
+            </div>
+            <div style={{display:"grid",gap:8}}>
+              {selected.map(r=>{const sv=getServings(r);const ns=nutritionScore(r.cal,r.protein,r.carbs,r.fat);return(
+                <div key={r.id} style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+                  <div style={{display:"flex",gap:12,alignItems:"center",padding:14}}>
+                    {r.photo?<img src={r.photo} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover"}}/>:<div style={{fontSize:24,flexShrink:0}}>{r.img}</div>}
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:6}}>{r.name}<span style={{fontSize:10,fontWeight:700,color:ns.color,padding:"1px 5px",borderRadius:6,background:`${ns.color}18`}}>{ns.grade}</span></div>
+                      <div style={{fontSize:11,color:T.silverMuted,marginTop:1}}><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(sv/r.servings))} cal</span> · {r.time}m · P:{Math.round(r.protein*(sv/r.servings))}g</div>
+                    </div>
+                    {/* Serving adjuster */}
+                    <div style={{display:"flex",alignItems:"center",gap:4,background:T.surfaceAlt,borderRadius:8,padding:"4px 6px"}}>
+                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv-1);}} style={{width:22,height:22,borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>−</button>
+                      <span style={{fontSize:12,fontWeight:600,color:T.silverBright,minWidth:16,textAlign:"center"}}>{sv}</span>
+                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv+1);}} style={{width:22,height:22,borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>+</button>
+                      <span style={{fontSize:9,color:T.silverMuted}}>srv</span>
+                    </div>
+                    <button onClick={()=>setExpanded(expanded===r.id?null:r.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 8px",fontSize:10,color:T.silverMuted,cursor:"pointer"}}>{expanded===r.id?"▲":"▼"}</button>
+                    <button onClick={()=>toggle(r)} style={{background:"none",border:`1px solid ${T.danger}33`,borderRadius:6,padding:"4px 10px",fontSize:10,color:T.danger,cursor:"pointer"}}>✕</button>
+                  </div>
+                  {expanded===r.id&&(<div style={{padding:"0 14px 14px",borderTop:`1px solid ${T.surfaceAlt}`}}><div style={{fontSize:11,fontWeight:600,color:T.silverMuted,margin:"10px 0 6px",textTransform:"uppercase",letterSpacing:"0.04em"}}>Ingredients (×{sv} servings)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>{r.ingredients.map((ing,i)=>{const have=userHas(ing.n,myIngs);const scaled=scaleIng(ing,r.servings,sv);return(<div key={i} style={{fontSize:11,color:have?T.accent1:T.silver,padding:"3px 0",display:"flex",gap:5}}><span style={{color:CAT_COLORS[ing.cat],fontSize:9}}>{CAT_ICONS[ing.cat]}</span><span style={{textDecoration:have?"line-through":"none"}}>{ing.n}</span>{have&&<span style={{fontSize:8,color:T.accent1}}>✓</span>}<span style={{color:T.textMuted,marginLeft:"auto",fontSize:10}}>{fmtAmt(scaled.a,scaled.u)}</span></div>);})}</div></div>)}
+                </div>
+              );})}
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:16}}>
+              <button onClick={()=>setView("shop")} style={{flex:1,background:T.gradAccent,color:"#fff",border:"none",padding:"11px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>🛒 Shopping List ({shopList.length})</button>
+              <button onClick={()=>setSelected([])} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 18px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>Clear</button>
+            </div>
+          </>)}
+          {!isPremium&&<div style={{marginTop:16}}><AdBanner variant="sidebar"/></div>}
+        </div>)}
+
+        {/* ═══ SHOPPING ═══ */}
+        {view==="shop"&&(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}><div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Shopping List</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>{shopList.length>0?<>{shopList.length} items needed{myIngs.length>0&&<span style={{color:T.accent1}}> · {myIngs.length} excluded</span>}</>:"Select recipes first"}</p></div>{shopList.length>0&&<button onClick={()=>setShopCheck({})} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>Reset</button>}</div>
+          {shopList.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>🛒</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>{selected.length>0?"You have everything!":"Select recipes first"}</div></div>):(
+          <div style={{background:T.surface,borderRadius:14,border:`1px solid ${T.border}`,padding:18}}>
+            <div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.silverMuted,marginBottom:3}}><span>Progress</span><span>{Object.values(shopCheck).filter(Boolean).length}/{shopList.length}</span></div><div style={{height:5,background:T.ringTrack,borderRadius:3,overflow:"hidden"}}><div style={{width:`${(Object.values(shopCheck).filter(Boolean).length/shopList.length)*100}%`,height:"100%",background:T.gradAccent,borderRadius:3,transition:"width 0.3s"}}/></div></div>
+            {Object.entries(shopGroups).map(([cat,items])=><ShoppingCategory key={cat} cat={cat} items={items} checked={shopCheck} onToggle={n=>setShopCheck(p=>({...p,[n]:!p[n]}))}/>)}
+          </div>)}
+          {!isPremium&&shopList.length>0&&<div style={{marginTop:16}}><AdBanner variant="inline"/></div>}
+        </div>)}
+
+        {/* ═══ NUTRITION TRACKER ═══ */}
+        {view==="nutrition"&&(<div className="fade-up">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
+            <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Nutrition Tracker</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Track calories, macros, and stay on target</p></div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>setAiScanner("calories")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>📸 Snap Meal</button>
+              <button onClick={()=>setEditGoals(!editGoals)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:T.silver,cursor:"pointer"}}>⚙️ Goals</button>
+            </div>
+          </div>
+
+          {/* Goals editor */}
+          {editGoals&&(<div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Daily Nutrition Goals</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+              {[{k:"calories",l:"Calories",u:""},{k:"protein",l:"Protein",u:"g"},{k:"carbs",l:"Carbs",u:"g"},{k:"fat",l:"Fat",u:"g"}].map(g=>(<div key={g.k}><div style={{fontSize:10,color:T.silverMuted,marginBottom:3}}>{g.l}{g.u&&` (${g.u})`}</div><input type="number" value={goals[g.k]} onChange={e=>setGoals(p=>({...p,[g.k]:parseInt(e.target.value)||0}))} style={inp}/></div>))}
+            </div>
+          </div>)}
+
+          {/* Daily overview - donut + macros */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+            <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <DonutChart value={todayTotal.cal} max={goals.calories} size={130} strokeWidth={12} color={T.accent1} label="Calories Today" sublabel={`${goals.calories-todayTotal.cal} remaining`}/>
+            </div>
+            <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Macros</div>
+              <MacroBar label="Protein" value={todayTotal.protein} max={goals.protein} color={T.accent1}/>
+              <MacroBar label="Carbs" value={todayTotal.carbs} max={goals.carbs} color={T.accent2}/>
+              <MacroBar label="Fat" value={todayTotal.fat} max={goals.fat} color={T.accent3}/>
+            </div>
+          </div>
+
+          {/* Weekly chart + streak */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:12,marginBottom:16}}>
+            <WeeklyBarChart data={weekData} max={goals.calories} color={T.accent2} label="Weekly Calories"/>
+            <StreakTracker streak={streak} best={bestStreak}/>
+          </div>
+
+          {/* Today's meal log */}
+          <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.silverBright}}>Today's Log</div>
+              <button onClick={()=>setAiScanner("calories")} style={{background:T.accent1Bg,border:`1px solid ${T.accent1Dim}`,borderRadius:6,padding:"4px 10px",fontSize:11,color:T.accent1,cursor:"pointer",fontWeight:600}}>+ Log Meal</button>
+            </div>
+            {todayLog.length===0&&selected.length===0?(<div style={{fontSize:12,color:T.silverMuted,textAlign:"center",padding:16}}>No meals logged today. Use "📸 Snap Meal" or add recipes to your plan.</div>):(
+              <div>{todayLog.map((l,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.surfaceAlt}`,fontSize:12}}><span style={{color:T.text}}>{l.name}</span><span style={{color:T.gold,fontWeight:600}}>{l.cal} cal</span></div>))}
+              {selected.map(r=>(<div key={r.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.surfaceAlt}`,fontSize:12}}><span style={{color:T.text}}>{r.img} {r.name} <span style={{color:T.silverMuted}}>(plan)</span></span><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(getServings(r)/r.servings))} cal</span></div>))}</div>
+            )}
+          </div>
+
+          {!isPremium&&<AdBanner variant="inline"/>}
+        </div>)}
+
+        {/* ═══ INTEGRATIONS ═══ */}
+        {view==="connect"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Integrations</h2><p style={{margin:"0 0 20px",fontSize:12,color:T.silverMuted}}>Connect platforms for more recipes</p>
+          {!isPremium?(<div style={{background:T.accent3Bg,border:`1px solid ${T.accent3Dim}`,borderRadius:14,padding:24,textAlign:"center"}}><div style={{fontSize:32}}>👑</div><div style={{fontSize:16,fontWeight:600,color:T.accent3,marginTop:6,marginBottom:4}}>Premium Integrations</div><div style={{fontSize:12,color:T.silverMuted,marginBottom:14}}>One-time $4.99 · No ads · 1,000+ recipes</div><button onClick={()=>{setIsPremium(true);}} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 24px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Unlock — $4.99</button></div>):(
+          <div style={{display:"grid",gap:12}}>{[{name:"Pinterest",icon:"📌",desc:"Import recipe pins from your boards",color:"#e60023"},{name:"Kindle / eBooks",icon:"📚",desc:"Pull recipes from your cookbooks",color:"#ff9900"},{name:"Instagram",icon:"📷",desc:"Save recipes from bookmarked posts",color:"#c13584"},{name:"YouTube",icon:"▶️",desc:"Import from cooking videos",color:"#ff0000"},{name:"Allrecipes",icon:"🍴",desc:"Sync your favorites",color:"#e86c28"},{name:"TikTok",icon:"🎵",desc:"Import trending recipes",color:"#69C9D0"}].map(int=>{const isConn=!!connectedApps[int.name];return(<div key={int.name} style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${isConn?T.accent1Dim:T.border}`,display:"flex",gap:14,alignItems:"center"}}><div style={{width:44,height:44,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:isConn?T.accent1Bg:`${int.color}15`,flexShrink:0}}>{int.icon}</div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:5}}>{int.name}<PremiumBadge/>{isConn&&<span style={{fontSize:9,color:T.accent1}}>● Connected</span>}</div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}>{isConn?`Syncing from ${int.name}`:int.desc}</div></div><button onClick={()=>setConnectedApps(p=>{const n={...p};if(n[int.name])delete n[int.name];else n[int.name]=true;return n;})} style={{background:isConn?"transparent":int.color,color:isConn?T.danger:"#fff",border:isConn?`1px solid ${T.danger}44`:"none",padding:"7px 16px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",minWidth:90,textAlign:"center"}}>{isConn?"Disconnect":"Connect"}</button></div>);})}</div>)}
+        </div>)}
+
+        {/* ═══ MEASUREMENT CONVERTER ═══ */}
+        {view==="convert"&&(function(){
+          var cats=[
+            {name:"Volume",conversions:[
+              {from:"cups",to:"tablespoons",factor:16,icon:"🥤"},
+              {from:"cups",to:"teaspoons",factor:48,icon:"🥤"},
+              {from:"cups",to:"fluid oz",factor:8,icon:"🥤"},
+              {from:"cups",to:"milliliters",factor:236.588,icon:"🥤"},
+              {from:"cups",to:"liters",factor:0.2366,icon:"🥤"},
+              {from:"tablespoons",to:"teaspoons",factor:3,icon:"🥄"},
+              {from:"tablespoons",to:"milliliters",factor:14.787,icon:"🥄"},
+              {from:"fluid oz",to:"milliliters",factor:29.574,icon:"💧"},
+              {from:"liters",to:"cups",factor:4.227,icon:"💧"},
+              {from:"gallons",to:"liters",factor:3.785,icon:"💧"},
+              {from:"quarts",to:"cups",factor:4,icon:"💧"},
+              {from:"pints",to:"cups",factor:2,icon:"💧"},
+            ]},
+            {name:"Weight",conversions:[
+              {from:"pounds",to:"ounces",factor:16,icon:"⚖️"},
+              {from:"pounds",to:"grams",factor:453.592,icon:"⚖️"},
+              {from:"pounds",to:"kilograms",factor:0.4536,icon:"⚖️"},
+              {from:"ounces",to:"grams",factor:28.3495,icon:"⚖️"},
+              {from:"kilograms",to:"pounds",factor:2.2046,icon:"⚖️"},
+            ]},
+            {name:"Temperature",conversions:[
+              {from:"°F",to:"°C",factor:"special_f_to_c",icon:"🌡️"},
+              {from:"°C",to:"°F",factor:"special_c_to_f",icon:"🌡️"},
+            ]},
+            {name:"Quick References",conversions:[
+              {from:"stick of butter",to:"tablespoons",factor:8,icon:"🧈"},
+              {from:"stick of butter",to:"cups",factor:0.5,icon:"🧈"},
+              {from:"cups of flour",to:"grams",factor:120,icon:"🌾"},
+              {from:"cups of sugar",to:"grams",factor:200,icon:"🍬"},
+              {from:"cups of rice",to:"grams",factor:185,icon:"🍚"},
+              {from:"clove of garlic",to:"teaspoons minced",factor:0.5,icon:"🧄"},
+              {from:"one lemon juice",to:"tablespoons",factor:3,icon:"🍋"},
+              {from:"one lime juice",to:"tablespoons",factor:2,icon:"🍈"},
+            ]},
+          ];
+          var initState={amount:"1",fromUnit:"cups",toUnit:"tablespoons",result:"16",category:"Volume"};
+          return <MeasurementConverter cats={cats} init={initState}/>;
+        })()}
+      </div>
+
+      {/* Recipe Detail Modal */}
+      {viewRecipe&&<RecipeDetailModal recipe={viewRecipe} onClose={()=>setViewRecipe(null)} onAddToPlan={(r)=>toggle(r)} isInPlan={!!selected.find(s=>s.id===viewRecipe.id)} myIngs={myIngs}/>}
+
+      {/* AI Scanner Modal */}
+      {aiScanner&&<AIPhotoScanner mode={aiScanner} onResult={aiScanner==="calories"?logMeal:addAIRecipe} onClose={()=>setAiScanner(null)}/>}
+
+      {/* Upgrade Modal */}
+      {showUpgrade&&(<div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}} onClick={()=>setShowUpgrade(false)}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:18,padding:28,maxWidth:400,width:"100%",border:`1px solid ${T.border}`}}><div style={{textAlign:"center"}}><div style={{fontSize:42}}>👑</div><h2 style={{margin:"8px 0",fontSize:22,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{isPremium?"Premium Unlocked!":"Unlock PantrySpark Premium"}</h2><p style={{margin:"0 0 20px",fontSize:13,color:T.silverMuted}}>{isPremium?"All features yours forever.":"One-time purchase — yours forever."}</p></div><div style={{display:"grid",gap:8,marginBottom:20}}>{["Ad-free forever","1,000+ premium recipes","Pinterest & Kindle integration","Instagram & YouTube sync","AI recipe scanner","Advanced nutrition tracking","Export & share plans"].map(f=>(<div key={f} style={{display:"flex",gap:8,alignItems:"center",fontSize:12,color:T.silver}}><span style={{color:T.accent1,fontWeight:700}}>✓</span>{f}</div>))}</div>{!isPremium?(<><button onClick={()=>{setIsPremium(true);setShowUpgrade(false);}} style={{width:"100%",background:T.gradPremium,color:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>Buy Premium — $4.99 one-time</button><div style={{textAlign:"center",marginTop:6,fontSize:10,color:T.textMuted}}>No subscription. Pay once, own forever.</div></>):(<button onClick={()=>{setIsPremium(false);setShowUpgrade(false);}} style={{width:"100%",background:T.surfaceAlt,color:T.silverMuted,border:"none",padding:"12px",borderRadius:10,fontSize:12,cursor:"pointer"}}>Revert to Free (demo)</button>)}<button onClick={()=>setShowUpgrade(false)} style={{width:"100%",background:"none",border:"none",padding:"8px",fontSize:12,color:T.textMuted,cursor:"pointer",marginTop:4}}>Close</button></div></div>)}
+    </div>
+    </ThemeCtx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(function(reg) {
+    console.log('PantrySpark: Service Worker registered', reg.scope);
+  }).catch(function(err) {
+    console.log('PantrySpark: SW registration failed', err);
+  });
+}
+</script>
+</body>
+</html>
