@@ -1,73 +1,126 @@
-var CACHE_NAME = 'pantryspark-v2';
-var urlsToCache = [
+var CACHE_NAME = 'pantryspark-v3';
+
+var PRECACHE_URLS = [
+  './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './icon-48.png',
+  './icon-72.png',
+  './icon-96.png',
+  './icon-128.png',
+  './icon-144.png',
+  './icon-152.png',
+  './icon-192.png',
+  './icon-384.png',
+  './icon-512.png'
 ];
 
-// Install — cache core files and activate immediately
+// INSTALL: precache all core app resources
 self.addEventListener('install', function(event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      console.log('PantrySpark: Caching core files');
-      return cache.addAll(urlsToCache);
-    })
+    caches.open(CACHE_NAME)
+      .then(function(cache) {
+        console.log('PantrySpark SW: Precaching app shell');
+        return cache.addAll(PRECACHE_URLS);
+      })
+      .then(function() {
+        return self.skipWaiting();
+      })
   );
-  // Skip waiting so the new SW activates immediately
-  self.skipWaiting();
 });
 
-// Activate — clean ALL old caches and take control immediately
+// ACTIVATE: delete old caches, claim clients
 self.addEventListener('activate', function(event) {
   event.waitUntil(
-    caches.keys().then(function(cacheNames) {
-      return Promise.all(
-        cacheNames.map(function(cacheName) {
-          if (cacheName !== CACHE_NAME) {
-            console.log('PantrySpark: Deleting old cache', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(function() {
-      // Take control of all open tabs immediately
-      return self.clients.claim();
-    })
+    caches.keys()
+      .then(function(cacheNames) {
+        return Promise.all(
+          cacheNames.filter(function(name) {
+            return name !== CACHE_NAME;
+          }).map(function(name) {
+            console.log('PantrySpark SW: Removing old cache', name);
+            return caches.delete(name);
+          })
+        );
+      })
+      .then(function() {
+        console.log('PantrySpark SW: Claiming clients');
+        return self.clients.claim();
+      })
   );
 });
 
-// Fetch — NETWORK FIRST strategy
-// Always tries to get the latest version from the server
-// Only falls back to cache if offline
+// FETCH: network-first for HTML, cache-first for static assets
 self.addEventListener('fetch', function(event) {
-  // Don't cache API calls
-  if (event.request.url.indexOf('api.pexels.com') !== -1 ||
-      event.request.url.indexOf('api.anthropic.com') !== -1 ||
-      event.request.url.indexOf('api.unsplash.com') !== -1) {
+  var request = event.request;
+  var url = request.url;
+
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
     return;
   }
 
+  // Skip external API calls — don't cache these
+  if (url.indexOf('api.pexels.com') !== -1 ||
+      url.indexOf('api.anthropic.com') !== -1 ||
+      url.indexOf('api.unsplash.com') !== -1 ||
+      url.indexOf('fonts.googleapis.com') !== -1 ||
+      url.indexOf('fonts.gstatic.com') !== -1 ||
+      url.indexOf('cdnjs.cloudflare.com') !== -1) {
+    return;
+  }
+
+  // For HTML requests: network first, fall back to cache
+  if (request.headers.get('Accept') && request.headers.get('Accept').indexOf('text/html') !== -1) {
+    event.respondWith(
+      fetch(request)
+        .then(function(response) {
+          if (response && response.status === 200) {
+            var responseClone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(function() {
+          return caches.match(request).then(function(cachedResponse) {
+            return cachedResponse || caches.match('./index.html');
+          });
+        })
+    );
+    return;
+  }
+
+  // For all other requests (images, JSON, etc): cache first, fall back to network
   event.respondWith(
-    fetch(event.request).then(function(response) {
-      // Got a fresh response — update the cache with it
-      if (response && response.status === 200) {
-        var responseToCache = response.clone();
-        caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(event.request, responseToCache);
+    caches.match(request)
+      .then(function(cachedResponse) {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then(function(response) {
+          if (response && response.status === 200 && response.type === 'basic') {
+            var responseClone = response.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
         });
-      }
-      return response;
-    }).catch(function() {
-      // Network failed — serve from cache (offline mode)
-      return caches.match(event.request).then(function(response) {
-        return response || caches.match('./index.html');
-      });
-    })
+      })
+      .catch(function() {
+        // Offline fallback for navigation
+        if (request.mode === 'navigate') {
+          return caches.match('./index.html');
+        }
+      })
   );
 });
 
-// Listen for messages from the app to force update
+// Listen for skip waiting message from app
 self.addEventListener('message', function(event) {
-  if (event.data === 'skipWaiting') {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
