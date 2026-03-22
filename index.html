@@ -661,10 +661,9 @@ function MeasurementConverter({cats,init}){
 // ─── MAIN APP ─────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════
 function App(){
-  // Persist view in URL hash so refresh stays on same page
   function getInitialView(){
     var hash=window.location.hash.replace("#","");
-    var valid=["pantry","suggestions","browse","upload","plan","calendar","shop","nutrition","connect","convert","leftovers","favorites"];
+    var valid=["pantry","suggestions","browse","upload","plan","calendar","shop","leftovers","nutrition","connect","convert","favorites"];
     return valid.indexOf(hash)!==-1?hash:"pantry";
   }
   const[theme,setThemeRaw]=useState(function(){try{return localStorage.getItem("ps_theme")||"dark";}catch(e){return "dark";}});
@@ -690,53 +689,47 @@ function App(){
   const[tagF,setTagF]=useState("all");
   const[expanded,setExpanded]=useState(null);
   const[page,setPage]=useState(1);
-  const[aiScanner,setAiScanner]=useState(null); // null | "calories" | "recipe"
-  const[viewRecipe,setViewRecipe]=useState(null); // recipe object for detail modal
-  // Weekly calendar: { "Mon_breakfast": recipe, "Mon_lunch": recipe, ... }
+  const[aiScanner,setAiScanner]=useState(null);
+  const[viewRecipe,setViewRecipe]=useState(null);
   const[weekMeals,setWeekMeals]=useState(function(){try{var s=localStorage.getItem("ps_week_meals");return s?JSON.parse(s):{};}catch(e){return {};}});
-  const[calendarPicker,setCalendarPicker]=useState(null); // {recipe} when picking a day/meal slot
+  const[calendarPicker,setCalendarPicker]=useState(null);
   function saveWeekMeals(m){setWeekMeals(m);try{localStorage.setItem("ps_week_meals",JSON.stringify(m));}catch(e){}}
   function addToCalendar(day,meal,recipe){var k=day+"_"+meal;var m=Object.assign({},weekMeals);m[k]=recipe;saveWeekMeals(m);}
   function removeFromCalendar(day,meal){var k=day+"_"+meal;var m=Object.assign({},weekMeals);delete m[k];saveWeekMeals(m);}
   function clearWeekCalendar(){saveWeekMeals({});}
   var calendarMealCount=Object.keys(weekMeals).length;
-  // Nutrition goals
   const[goals,setGoals]=useState({calories:2000,protein:120,carbs:250,fat:65});
   const[editGoals,setEditGoals]=useState(false);
-  // Calorie log: [{date,name,cal,protein,carbs,fat}]
   const[calorieLog,setCalorieLog]=useState([]);
   const[streak,setStreak]=useState(0);
   const[bestStreak,setBestStreak]=useState(0);
-  // ── NEW FEATURE STATES ──
-  // Ratings: {recipeId: 1-5}
+  // Ratings, favorites, notes
   const[ratings,setRatings]=useState(function(){try{var s=localStorage.getItem("ps_ratings");return s?JSON.parse(s):{};}catch(e){return {};}});
   function setRating(id,v){var r=Object.assign({},ratings);r[id]=v;setRatings(r);try{localStorage.setItem("ps_ratings",JSON.stringify(r));}catch(e){}}
-  // Favorites: [recipeId, ...]
   const[favorites,setFavorites]=useState(function(){try{var s=localStorage.getItem("ps_favs");return s?JSON.parse(s):[];}catch(e){return [];}});
   function toggleFav(id){var f=favorites.indexOf(id)===-1?favorites.concat([id]):favorites.filter(function(x){return x!==id;});setFavorites(f);try{localStorage.setItem("ps_favs",JSON.stringify(f));}catch(e){}}
-  // Recipe notes: {recipeId: "note text"}
   const[recipeNotes,setRecipeNotes]=useState(function(){try{var s=localStorage.getItem("ps_notes");return s?JSON.parse(s):{};}catch(e){return {};}});
   function saveNote(id,text){var n=Object.assign({},recipeNotes);if(text)n[id]=text;else delete n[id];setRecipeNotes(n);try{localStorage.setItem("ps_notes",JSON.stringify(n));}catch(e){}}
-  // Dietary restrictions: ["gluten-free","vegan",...]
+  // Diet restrictions
   const[dietRestrictions,setDietRestrictions]=useState(function(){try{var s=localStorage.getItem("ps_diet");return s?JSON.parse(s):[];}catch(e){return [];}});
   function saveDiet(arr){setDietRestrictions(arr);try{localStorage.setItem("ps_diet",JSON.stringify(arr));}catch(e){}}
   const[showDietFilter,setShowDietFilter]=useState(false);
-  // Water intake: {date: glasses}
+  // Water intake
+  var today=new Date().toISOString().slice(0,10);
   const[waterLog,setWaterLog]=useState(function(){try{var s=localStorage.getItem("ps_water");return s?JSON.parse(s):{};}catch(e){return {};}});
   var todayWater=waterLog[today]||0;
   var waterGoal=8;
-  function addWater(n){var w=Object.assign({},waterLog);w[today]=(w[today]||0)+n;setWaterLog(w);try{localStorage.setItem("ps_water",JSON.stringify(w));}catch(e){}}
-  // Leftovers: [{name,addedDate,expiresDate,qty,unit}]
+  function addWater(n){var w=Object.assign({},waterLog);w[today]=Math.max(0,(w[today]||0)+n);setWaterLog(w);try{localStorage.setItem("ps_water",JSON.stringify(w));}catch(e){}}
+  // Leftovers
   const[leftovers,setLeftovers]=useState(function(){try{var s=localStorage.getItem("ps_leftovers");return s?JSON.parse(s):[];}catch(e){return [];}});
   function saveLeftovers(arr){setLeftovers(arr);try{localStorage.setItem("ps_leftovers",JSON.stringify(arr));}catch(e){}}
   const[showAddLeftover,setShowAddLeftover]=useState(false);
-  // Active timer
-  const[activeTimer,setActiveTimer]=useState(null); // {recipeName,step,totalSec,remaining,running}
+  // Timer
+  const[activeTimer,setActiveTimer]=useState(null);
   const timerRef=useRef(null);
   const inpRef=useRef(null);
-  // Timer tick effect (must be at top level, not inside render IIFE)
   useEffect(function(){
-    if(!activeTimer||!activeTimer.running){clearInterval(timerRef.current);return;}
+    if(!activeTimer||!activeTimer.running){if(timerRef.current)clearInterval(timerRef.current);return;}
     timerRef.current=setInterval(function(){
       setActiveTimer(function(prev){
         if(!prev||!prev.running)return prev;
@@ -745,9 +738,9 @@ function App(){
       });
     },1000);
     return function(){clearInterval(timerRef.current);};
-  },[activeTimer&&activeTimer.running]);
-  const T=THEMES[theme];
+  },[activeTimer?activeTimer.running:false,activeTimer?1:0]);
 
+  const T=THEMES[theme];
   const premiumRecipes=useMemo(()=>genPremium(),[]);
   const allRecipes=useMemo(()=>[...FREE_RECIPES,...customs,...(isPremium?premiumRecipes:[])],[customs,isPremium,premiumRecipes]);
   const suggestions=ingInput.length>1?COMMON_INGREDIENTS.filter(i=>i.toLowerCase().includes(ingInput.toLowerCase())&&!myIngs.includes(i)).slice(0,6):[];
@@ -756,68 +749,63 @@ function App(){
   const toggle=(r)=>setSelected(p=>p.find(x=>x.id===r.id)?p.filter(x=>x.id!==r.id):[...p,r]);
   const getServings=(r)=>servingOverrides[r.id]||r.servings;
   const setServings=(id,v)=>setServingOverrides(p=>({...p,[id]:Math.max(1,v)}));
-
-  // Shopping list: only missing items, scaled to serving overrides
   const shopList=useMemo(()=>{const items={};selected.forEach(r=>{const sv=getServings(r);r.ingredients.forEach(ing=>{if(userHas(ing.n,myIngs))return;const k=ing.n.toLowerCase();const scaled=scaleIng(ing,r.servings,sv);if(!items[k])items[k]={...scaled,count:1};else{items[k].a+=scaled.a;items[k].count++;}});});return Object.values(items).sort((a,b)=>a.cat.localeCompare(b.cat));},[selected,myIngs,servingOverrides]);
   const shopGroups={};shopList.forEach(i=>{if(!shopGroups[i.cat])shopGroups[i.cat]=[];shopGroups[i.cat].push(i);});
-
-  // Today's nutrition from log + selected recipes
-  const today=new Date().toISOString().slice(0,10);
   const todayLog=calorieLog.filter(l=>l.date===today);
   const todayFromLog=todayLog.reduce((a,l)=>({cal:a.cal+l.cal,protein:a.protein+l.protein,carbs:a.carbs+l.carbs,fat:a.fat+l.fat}),{cal:0,protein:0,carbs:0,fat:0});
   const todayFromPlan=selected.reduce((a,r)=>{const sv=getServings(r);const ratio=sv/r.servings;return{cal:a.cal+Math.round(r.cal*ratio),protein:a.protein+Math.round(r.protein*ratio),carbs:a.carbs+Math.round(r.carbs*ratio),fat:a.fat+Math.round(r.fat*ratio)};},{cal:0,protein:0,carbs:0,fat:0});
   const todayTotal={cal:todayFromLog.cal+todayFromPlan.cal,protein:todayFromLog.protein+todayFromPlan.protein,carbs:todayFromLog.carbs+todayFromPlan.carbs,fat:todayFromLog.fat+todayFromPlan.fat};
-
-  // Weekly data (simple: today's data repeated as demo)
-  const weekData=[0,0,0,0,0,0,0].map((_,i)=>i===new Date().getDay()-1?todayTotal.cal:todayLog.length>0?Math.round(todayTotal.cal*0.85):0);
-
-  // Log a meal from AI scanner or manual
+  const weekData=[0,0,0,0,0,0,0].map((_,i)=>i===new Date().getDay()-1?todayTotal.cal:0);
   const logMeal=(meal)=>{setCalorieLog(p=>[...p,{date:today,name:meal.name||"Meal",cal:meal.calories||0,protein:meal.protein||0,carbs:meal.carbs||0,fat:meal.fat||0}]);};
-  // Add recipe from AI scanner
-  const addAIRecipe=(data)=>{const r={id:2000+customs.length,name:data.name||"Scanned Recipe",img:"📸",photo:null,time:data.time||15,servings:data.servings||4,cal:data.calories||300,protein:data.protein||15,carbs:data.carbs||30,fat:data.fat||12,tags:data.tags||["imported"],ingredients:(data.ingredients||[]).map(i=>({n:i.name,a:i.amount||1,u:i.unit||"pcs",cat:i.category||"Produce"})),isCustom:true};setCustoms(p=>[...p,r]);};
-
+  const addAIRecipe=(data)=>{const r={id:2000+customs.length,name:data.name||"Scanned Recipe",img:"\uD83D\uDCF8",photo:null,time:data.time||15,servings:data.servings||4,cal:data.calories||300,protein:data.protein||15,carbs:data.carbs||30,fat:data.fat||12,tags:data.tags||["imported"],ingredients:(data.ingredients||[]).map(i=>({n:i.name,a:i.amount||1,u:i.unit||"pcs",cat:i.category||"Produce"})),isCustom:true};setCustoms(p=>[...p,r]);};
   const allTags=useMemo(()=>[...new Set(allRecipes.flatMap(r=>r.tags))].sort(),[allRecipes]);
   const browsable=useMemo(()=>{let r=allRecipes;if(search)r=r.filter(x=>x.name.toLowerCase().includes(search.toLowerCase()));if(tagF!=="all")r=r.filter(x=>x.tags.includes(tagF));if(dietRestrictions.length>0)r=r.filter(x=>dietRestrictions.every(function(d){return x.tags.indexOf(d)!==-1;}));return r;},[allRecipes,search,tagF,dietRestrictions]);
   const PAGE_SIZE=30;const browsablePage=browsable.slice(0,page*PAGE_SIZE);
 
+  function shareRecipe(r,sv){
+    var ratio=(sv||r.servings)/r.servings;
+    var text=r.name+"\n\nServings: "+(sv||r.servings)+"\nCalories: "+Math.round(r.cal*ratio)+"\nProtein: "+Math.round(r.protein*ratio)+"g\n\nIngredients:\n"+r.ingredients.map(function(ing){var s=scaleIng(ing,r.servings,sv||r.servings);return"- "+fmtAmt(s.a,s.u)+" "+ing.n;}).join("\n")+"\n\nShared from PantrySpark";
+    if(navigator.share){navigator.share({title:r.name,text:text});}else{navigator.clipboard.writeText(text).then(function(){alert("Recipe copied to clipboard!");});}
+  }
+
   const NAV=[
-    {key:"pantry",label:"Pantry",icon:"🧊"},
-    {key:"suggestions",label:"Suggest",icon:"✨",badge:matched.length||null},
-    {key:"browse",label:"Recipes",icon:"📖"},
-    {key:"favorites",label:"Favs",icon:"❤️",badge:favorites.length||null},
-    {key:"upload",label:"Add",icon:"➕"},
-    {key:"plan",label:"Plan",icon:"📋",badge:selected.length||null},
-    {key:"calendar",label:"Week",icon:"📅",badge:calendarMealCount||null},
-    {key:"shop",label:"Shop",icon:"🛒",badge:shopList.length||null},
-    {key:"leftovers",label:"Leftovers",icon:"🥡",badge:leftovers.length||null},
-    {key:"nutrition",label:"Nutrition",icon:"📊"},
-    {key:"connect",label:"Connect",icon:"🔗"},
-    {key:"convert",label:"Convert",icon:"📐"},
+    {key:"pantry",label:"Pantry",icon:"\uD83E\uDDCA"},
+    {key:"suggestions",label:"Suggest",icon:"\u2728",badge:matched.length||null},
+    {key:"browse",label:"Recipes",icon:"\uD83D\uDCD6"},
+    {key:"favorites",label:"Favs",icon:"\u2764\uFE0F",badge:favorites.length||null},
+    {key:"upload",label:"Add",icon:"\u2795"},
+    {key:"plan",label:"Plan",icon:"\uD83D\uDCCB",badge:selected.length||null},
+    {key:"calendar",label:"Week",icon:"\uD83D\uDCC5",badge:calendarMealCount||null},
+    {key:"shop",label:"Shop",icon:"\uD83D\uDED2",badge:shopList.length||null},
+    {key:"leftovers",label:"Leftovers",icon:"\uD83E\uDD61",badge:leftovers.length||null},
+    {key:"nutrition",label:"Nutrition",icon:"\uD83D\uDCCA"},
+    {key:"connect",label:"Connect",icon:"\uD83D\uDD17"},
+    {key:"convert",label:"Convert",icon:"\uD83D\uDCCF"},
   ];
 
-  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,outline:"none",background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,outline:"none",background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"};
 
   return(
     <ThemeCtx.Provider value={T}>
     <div style={{minHeight:"100vh",background:T.bg,fontFamily:"'Manrope',sans-serif",color:T.text,transition:"background 0.3s, color 0.3s"}}>
       <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet"/>
-      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${T.scrollThumb};border-radius:3px}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}.fade-up{animation:fadeUp 0.4s ease both}input::placeholder,select{color:${T.textMuted}}input:focus{border-color:${T.accent1} !important;outline:none}`}</style>
+      <style>{"*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:"+T.scrollThumb+";border-radius:3px}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}.fade-up{animation:fadeUp 0.4s ease both}input::placeholder,select{color:"+T.textMuted+"}input:focus{border-color:"+T.accent1+" !important;outline:none}"}</style>
 
       {/* HEADER */}
-      <div style={{background:T.gradHeader,padding:"16px 20px 10px",position:"sticky",top:0,zIndex:100,borderBottom:`1px solid ${T.border}`}}>
+      <div style={{background:T.gradHeader,padding:"16px 20px 10px",position:"sticky",top:0,zIndex:100,borderBottom:"1px solid "+T.border}}>
         <div style={{maxWidth:1000,margin:"0 auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div>
               <h1 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",fontWeight:700,background:T.gradAccent,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>PantrySpark</h1>
-              <p style={{margin:"1px 0 0",fontSize:10,color:T.silverMuted}}>{allRecipes.length.toLocaleString()} recipes · Your pantry sparks the ideas</p>
+              <p style={{margin:"1px 0 0",fontSize:10,color:T.silverMuted}}>{allRecipes.length.toLocaleString()} recipes</p>
             </div>
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <button onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>{theme==="dark"?"☀️":"🌙"}</button>
-              <button onClick={()=>setShowUpgrade(true)} style={{background:isPremium?T.gradPremium:"rgba(167,139,250,0.12)",border:isPremium?"none":"1px solid rgba(167,139,250,0.3)",color:"#fff",padding:"6px 12px",borderRadius:20,fontSize:10,fontWeight:600,cursor:"pointer"}}>{isPremium?"👑 Premium":"Upgrade"}</button>
+              <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",color:"#fff",width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:14}}>{theme==="dark"?"\u2600\uFE0F":"\uD83C\uDF19"}</button>
+              <button onClick={()=>setShowUpgrade(true)} style={{background:isPremium?T.gradPremium:"rgba(167,139,250,0.12)",border:isPremium?"none":"1px solid rgba(167,139,250,0.3)",color:"#fff",padding:"6px 12px",borderRadius:20,fontSize:10,fontWeight:600,cursor:"pointer"}}>{isPremium?"\uD83D\uDC51 Premium":"Upgrade"}</button>
             </div>
           </div>
           <div style={{display:"flex",gap:1,overflowX:"auto",paddingBottom:2}}>
-            {NAV.map(n=>(<button key={n.key} onClick={()=>{setView(n.key);if(n.key==="upload")setShowUpload(true);setPage(1);}} style={{padding:"7px 10px",border:"none",borderRadius:"7px 7px 0 0",background:view===n.key?T.bg:"transparent",color:view===n.key?T.accent1:T.silverMuted,fontWeight:view===n.key?600:400,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:3,fontFamily:"'Manrope',sans-serif",transition:"all 0.15s"}}><span style={{fontSize:13}}>{n.icon}</span><span>{n.label}</span>{n.badge&&<span style={{background:view===n.key?T.accent1:`${T.accent1}44`,color:"#fff",fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}</button>))}
+            {NAV.map(n=>(<button key={n.key} onClick={()=>{setView(n.key);if(n.key==="upload")setShowUpload(true);setPage(1);}} style={{padding:"7px 10px",border:"none",borderRadius:"7px 7px 0 0",background:view===n.key?T.bg:"transparent",color:view===n.key?T.accent1:T.silverMuted,fontWeight:view===n.key?600:400,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:3,fontFamily:"'Manrope',sans-serif",transition:"all 0.15s"}}><span style={{fontSize:13}}>{n.icon}</span><span>{n.label}</span>{n.badge&&<span style={{background:view===n.key?T.accent1:T.accent1+"44",color:"#fff",fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}</button>))}
           </div>
         </div>
       </div>
@@ -826,423 +814,241 @@ function App(){
         {!isPremium&&<AdBanner variant="leaderboard"/>}
 
         {/* ═══ PANTRY ═══ */}
-        {view==="pantry"&&(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}><div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Pantry</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Add what you have — up to 20 recipe suggestions!</p></div>{myIngs.length>0&&matched.length>0&&(<button onClick={()=>setView("suggestions")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",animation:"pulse 2s infinite"}}>✨ {matched.length} Recipes →</button>)}</div>
-          <div style={{position:"relative",marginBottom:16}}><input ref={inpRef} value={ingInput} onChange={e=>setIngInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&ingInput.trim())addIng(ingInput.trim());}} placeholder="Type an ingredient..." style={{...inp,padding:"12px 16px",fontSize:14,borderRadius:12,border:`2px solid ${T.border}`}}/>{suggestions.length>0&&(<div style={{position:"absolute",top:"100%",left:0,right:0,background:T.surface,borderRadius:"0 0 12px 12px",border:`1px solid ${T.border}`,borderTop:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.2)",zIndex:50}}>{suggestions.map(s=>(<div key={s} onClick={()=>addIng(s)} style={{padding:"10px 16px",cursor:"pointer",fontSize:13,color:T.text,borderBottom:`1px solid ${T.surfaceAlt}`}} onMouseEnter={e=>e.target.style.background=T.accent1Bg} onMouseLeave={e=>e.target.style.background="transparent"}>{s}</div>))}</div>)}</div>
-          {myIngs.length>0?(<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>{myIngs.map(i=><IngredientChip key={i} name={i} onRemove={()=>setMyIngs(p=>p.filter(x=>x!==i))}/>)}<button onClick={()=>setMyIngs([])} style={{background:"none",border:`1px dashed ${T.borderLight}`,borderRadius:20,padding:"5px 12px",fontSize:11,color:T.textMuted,cursor:"pointer"}}>Clear</button></div>):(<div style={{background:T.surface,borderRadius:14,padding:28,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36,marginBottom:10}}>🧊</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginBottom:6}}>Pantry is empty</div><div style={{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap",marginTop:12}}>{["Chicken breast","Eggs","Rice","Garlic","Onion","Butter","Soy sauce","Olive oil"].map(i=>(<button key={i} onClick={()=>addIng(i)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${T.border}`,background:T.surfaceAlt,fontSize:11,cursor:"pointer",color:T.silver}}>+ {i}</button>))}</div></div>)}
+        {view==="pantry"&&(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}><div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Pantry</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Add what you have</p></div>{myIngs.length>0&&matched.length>0&&(<button onClick={()=>setView("suggestions")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",animation:"pulse 2s infinite"}}>{"\u2728"} {matched.length} Recipes {"\u2192"}</button>)}</div>
+          <div style={{position:"relative",marginBottom:16}}><input ref={inpRef} value={ingInput} onChange={e=>setIngInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&ingInput.trim())addIng(ingInput.trim());}} placeholder="Type an ingredient..." style={{...inp,padding:"12px 16px",fontSize:14,borderRadius:12,border:"2px solid "+T.border}}/>{suggestions.length>0&&(<div style={{position:"absolute",top:"100%",left:0,right:0,background:T.surface,borderRadius:"0 0 12px 12px",border:"1px solid "+T.border,borderTop:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.2)",zIndex:50}}>{suggestions.map(s=>(<div key={s} onClick={()=>addIng(s)} style={{padding:"10px 16px",cursor:"pointer",fontSize:13,color:T.text,borderBottom:"1px solid "+T.surfaceAlt}} onMouseEnter={e=>e.target.style.background=T.accent1Bg} onMouseLeave={e=>e.target.style.background="transparent"}>{s}</div>))}</div>)}</div>
+          {myIngs.length>0?(<div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:16}}>{myIngs.map(i=><IngredientChip key={i} name={i} onRemove={()=>setMyIngs(p=>p.filter(x=>x!==i))}/>)}<button onClick={()=>setMyIngs([])} style={{background:"none",border:"1px dashed "+T.borderLight,borderRadius:20,padding:"5px 12px",fontSize:11,color:T.textMuted,cursor:"pointer"}}>Clear</button></div>):(<div style={{background:T.surface,borderRadius:14,padding:28,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83E\uDDCA"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginBottom:6}}>Pantry is empty</div><div style={{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap",marginTop:12}}>{["Chicken breast","Eggs","Rice","Garlic","Onion","Butter","Soy sauce","Olive oil"].map(i=>(<button key={i} onClick={()=>addIng(i)} style={{padding:"5px 12px",borderRadius:20,border:"1px solid "+T.border,background:T.surfaceAlt,fontSize:11,cursor:"pointer",color:T.silver}}>+ {i}</button>))}</div></div>)}
           {!isPremium&&myIngs.length>0&&<AdBanner variant="inline"/>}
         </div>)}
 
         {/* ═══ SUGGESTIONS ═══ */}
-        {view==="suggestions"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Suggestions <span style={{fontSize:13,color:T.accent1}}>({matched.length})</span></h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Based on {myIngs.length} ingredients — tap to select</p>
-          {matched.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>🔍</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}><button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Add ingredients</button></div></div>):(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{matched.map((r,i)=>(<React.Fragment key={r.id}><RecipeCard recipe={r} matchPct={r.matchPct} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)}/>{!isPremium&&i===5&&<div style={{gridColumn:"1/-1"}}><AdBanner variant="inline"/></div>}</React.Fragment>))}</div>)}
-          {selected.length>0&&(<div style={{position:"sticky",bottom:14,background:T.surface,borderRadius:12,padding:"12px 18px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 30px rgba(0,0,0,0.3)",border:`1px solid ${T.border}`}}><span style={{fontWeight:600,fontSize:13,color:T.silverBright}}>{selected.length} selected</span><button onClick={()=>setView("plan")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>View Plan →</button></div>)}
+        {view==="suggestions"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Suggestions ({matched.length})</h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Based on {myIngs.length} ingredients</p>
+          {matched.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83D\uDD0D"}</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}><button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Add ingredients</button></div></div>):(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{matched.map((r,i)=>(<React.Fragment key={r.id}><RecipeCard recipe={r} matchPct={r.matchPct} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)}/>{!isPremium&&i===5&&<div style={{gridColumn:"1/-1"}}><AdBanner variant="inline"/></div>}</React.Fragment>))}</div>)}
+          {selected.length>0&&(<div style={{position:"sticky",bottom:14,background:T.surface,borderRadius:12,padding:"12px 18px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 30px rgba(0,0,0,0.3)",border:"1px solid "+T.border}}><span style={{fontWeight:600,fontSize:13,color:T.silverBright}}>{selected.length} selected</span><button onClick={()=>setView("plan")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>View Plan {"\u2192"}</button></div>)}
         </div>)}
 
         {/* ═══ BROWSE ═══ */}
-        {view==="browse"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>All Recipes</h2><p style={{margin:"0 0 12px",fontSize:12,color:T.silverMuted}}>{isPremium?`${allRecipes.length.toLocaleString()} recipes`:`${FREE_RECIPES.length} free`}{!isPremium&&<span> · <button onClick={()=>setShowUpgrade(true)} style={{color:T.accent3,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:12}}>Unlock 1,000+</button></span>}</p>
+        {view==="browse"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>All Recipes</h2><p style={{margin:"0 0 12px",fontSize:12,color:T.silverMuted}}>{isPremium?allRecipes.length.toLocaleString()+" recipes":FREE_RECIPES.length+" free"}{!isPremium&&<span> {"\u00B7"} <button onClick={()=>setShowUpgrade(true)} style={{color:T.accent3,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontSize:12}}>Unlock 1,000+</button></span>}</p>
           <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search..." style={{...inp,flex:1,minWidth:160}}/><select value={tagF} onChange={e=>{setTagF(e.target.value);setPage(1);}} style={{...inp,width:"auto"}}><option value="all">All tags</option>{allTags.map(t=><option key={t} value={t}>{t}</option>)}</select><button onClick={function(){setShowDietFilter(!showDietFilter);}} style={{background:dietRestrictions.length>0?T.accent1Bg:T.surface,border:"1px solid "+(dietRestrictions.length>0?T.accent1Dim:T.border),borderRadius:8,padding:"9px 14px",fontSize:11,color:dietRestrictions.length>0?T.accent1:T.silverMuted,cursor:"pointer",fontWeight:600}}>{"\uD83C\uDF3F"} Diet{dietRestrictions.length>0?" ("+dietRestrictions.length+")":""}</button><button onClick={()=>{setView("upload");setShowUpload(true);}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ Add</button></div>
-          {showDietFilter&&(<div style={{background:T.surface,borderRadius:12,border:"1px solid "+T.border,padding:16,marginBottom:14}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:8}}>Dietary Restrictions</div>
-            <p style={{fontSize:11,color:T.silverMuted,margin:"0 0 10px"}}>Only show recipes matching ALL selected tags. Saved automatically.</p>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["vegan","vegetarian","keto","gluten-free","high-protein","quick","meal-prep","comfort","breakfast","lunch","dinner"].map(function(tag){
-                var active=dietRestrictions.indexOf(tag)!==-1;
-                return(<button key={tag} onClick={function(){var arr=active?dietRestrictions.filter(function(t){return t!==tag;}):dietRestrictions.concat([tag]);saveDiet(arr);}} style={{padding:"6px 12px",borderRadius:20,border:"1px solid "+(active?T.accent1Dim:T.border),background:active?T.accent1Bg:T.surfaceAlt,color:active?T.accent1:T.silverMuted,fontSize:11,cursor:"pointer",fontWeight:active?600:400}}>{active?"\u2713 ":""}{tag}</button>);
-              })}
-            </div>
-            {dietRestrictions.length>0&&<button onClick={function(){saveDiet([]);}} style={{marginTop:8,background:"none",border:"none",color:T.danger,fontSize:11,cursor:"pointer"}}>Clear all filters</button>}
-          </div>)}
+          {showDietFilter&&(<div style={{background:T.surface,borderRadius:12,border:"1px solid "+T.border,padding:16,marginBottom:14}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:8}}>Dietary Restrictions</div><p style={{fontSize:11,color:T.silverMuted,margin:"0 0 10px"}}>Only show recipes matching ALL selected tags.</p><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{["vegan","vegetarian","keto","gluten-free","high-protein","quick","meal-prep","comfort","breakfast","lunch","dinner"].map(function(tag){var active=dietRestrictions.indexOf(tag)!==-1;return(<button key={tag} onClick={function(){var arr=active?dietRestrictions.filter(function(t){return t!==tag;}):dietRestrictions.concat([tag]);saveDiet(arr);}} style={{padding:"6px 12px",borderRadius:20,border:"1px solid "+(active?T.accent1Dim:T.border),background:active?T.accent1Bg:T.surfaceAlt,color:active?T.accent1:T.silverMuted,fontSize:11,cursor:"pointer",fontWeight:active?600:400}}>{active?"\u2713 ":""}{tag}</button>);})}</div>{dietRestrictions.length>0&&<button onClick={function(){saveDiet([]);}} style={{marginTop:8,background:"none",border:"none",color:T.danger,fontSize:11,cursor:"pointer"}}>Clear all filters</button>}</div>)}
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{browsablePage.map((r,i)=>(<React.Fragment key={r.id}><RecipeCard recipe={r} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)} locked={r.isPremiumOnly&&!isPremium}/>{!isPremium&&i===11&&<div style={{gridColumn:"1/-1"}}><AdBanner variant="inline"/></div>}</React.Fragment>))}</div>
-          {browsablePage.length<browsable.length&&(<div style={{textAlign:"center",marginTop:16}}><button onClick={()=>setPage(p=>p+1)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 28px",fontSize:12,color:T.silver,cursor:"pointer"}}>Load more ({browsable.length-browsablePage.length})</button></div>)}
-          {selected.length>0&&(<div style={{position:"sticky",bottom:14,background:T.surface,borderRadius:12,padding:"12px 18px",marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 30px rgba(0,0,0,0.3)",border:`1px solid ${T.border}`}}><span style={{fontWeight:600,fontSize:13,color:T.silverBright}}>{selected.length} in plan</span><button onClick={()=>setView("plan")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>View Plan →</button></div>)}
+          {browsablePage.length<browsable.length&&(<div style={{textAlign:"center",marginTop:16}}><button onClick={()=>setPage(p=>p+1)} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:10,padding:"10px 28px",fontSize:12,color:T.silver,cursor:"pointer"}}>Load more ({browsable.length-browsablePage.length})</button></div>)}
         </div>)}
 
         {/* ═══ FAVORITES ═══ */}
         {view==="favorites"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Favorites {"\u2764\uFE0F"}</h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>{favorites.length} saved recipes</p>
-          {favorites.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\u2764\uFE0F"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>No favorites yet</div><div style={{fontSize:12,color:T.silverMuted,marginTop:4}}>Tap the heart icon on any recipe to save it here</div><button onClick={function(){setView("browse");}} style={{marginTop:12,background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>Browse Recipes</button></div>):(
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
-            {allRecipes.filter(function(r){return favorites.indexOf(r.id)!==-1;}).map(function(r){return <RecipeCard key={r.id} recipe={r} selected={!!selected.find(function(s){return s.id===r.id;})} onOpen={function(r){setViewRecipe(r);}}/>;})}</div>)}
+          {favorites.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\u2764\uFE0F"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>No favorites yet</div><div style={{fontSize:12,color:T.silverMuted,marginTop:4}}>Tap the heart on any recipe to save it</div><button onClick={function(){setView("browse");}} style={{marginTop:12,background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>Browse Recipes</button></div>):(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>{allRecipes.filter(function(r){return favorites.indexOf(r.id)!==-1;}).map(function(r){return <RecipeCard key={r.id} recipe={r} selected={!!selected.find(function(s){return s.id===r.id;})} onOpen={function(r){setViewRecipe(r);}}/>;})}</div>)}
         </div>)}
 
         {/* ═══ UPLOAD ═══ */}
         {view==="upload"&&(<div className="fade-up">
           {showUpload?(<RecipeUploadForm onSave={(r)=>{setCustoms(p=>[...p,r]);setShowUpload(false);}} onCancel={()=>{setShowUpload(false);setView("browse");}} nextId={2000+customs.length}/>):(
-          <div style={{textAlign:"center",padding:32}}>
-            <div style={{fontSize:40,marginBottom:10}}>📝</div>
-            <h2 style={{fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright,marginBottom:6}}>Your Recipes</h2>
-            <div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}>
-              <button onClick={()=>setShowUpload(true)} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Manual Entry</button>
-              <button onClick={()=>setAiScanner("recipe")} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>📸 Scan from Photo</button>
-            </div>
+          <div style={{textAlign:"center",padding:32}}><div style={{fontSize:40,marginBottom:10}}>{"\uD83D\uDCDD"}</div><h2 style={{fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright,marginBottom:6}}>Your Recipes</h2><div style={{display:"flex",gap:10,justifyContent:"center",marginBottom:20,flexWrap:"wrap"}}><button onClick={()=>setShowUpload(true)} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Manual Entry</button><button onClick={()=>setAiScanner("recipe")} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 22px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>{"\uD83D\uDCF8"} Scan from Photo</button></div>
             {customs.length>0&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10,textAlign:"left"}}>{customs.map(r=><RecipeCard key={r.id} recipe={r} selected={!!selected.find(s=>s.id===r.id)} onOpen={(r)=>setViewRecipe(r)}/>)}</div>)}
           </div>)}
         </div>)}
 
-        {/* ═══ PLAN (with serving size adjuster) ═══ */}
-        {view==="plan"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Meal Plan</h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Adjust servings — ingredients auto-calculate</p>
-          {selected.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>📋</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}>Go to <button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Pantry</button> or <button onClick={()=>setView("browse")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Browse</button></div></div>):(
-          <>
+        {/* ═══ PLAN ═══ */}
+        {view==="plan"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>My Meal Plan</h2><p style={{margin:"0 0 16px",fontSize:12,color:T.silverMuted}}>Adjust servings {"\u2014"} ingredients auto-calculate</p>
+          {selected.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83D\uDCCB"}</div><div style={{fontSize:13,color:T.silverMuted,marginTop:8}}>Go to <button onClick={()=>setView("pantry")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Pantry</button> or <button onClick={()=>setView("browse")} style={{color:T.accent1,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Browse</button></div></div>):(
+          <React.Fragment>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:16}}>
-              {[{l:"Recipes",v:selected.length,c:T.accent1},{l:"Total Cal",v:todayFromPlan.cal,c:T.gold},{l:"Avg Protein",v:Math.round(selected.reduce((s,r)=>s+r.protein,0)/selected.length)+"g",c:T.accent2},{l:"Total Time",v:selected.reduce((s,r)=>s+r.time,0)+"m",c:T.accent3}].map((s,i)=>(<div key={i} style={{background:T.surface,borderRadius:10,padding:12,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:T.silverMuted}}>{s.l}</div></div>))}
+              {[{l:"Recipes",v:selected.length,c:T.accent1},{l:"Total Cal",v:todayFromPlan.cal,c:T.gold},{l:"Avg Protein",v:Math.round(selected.reduce((s,r)=>s+r.protein,0)/selected.length)+"g",c:T.accent2},{l:"Total Time",v:selected.reduce((s,r)=>s+r.time,0)+"m",c:T.accent3}].map((s,i)=>(<div key={i} style={{background:T.surface,borderRadius:10,padding:12,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div><div style={{fontSize:10,color:T.silverMuted}}>{s.l}</div></div>))}
             </div>
             <div style={{display:"grid",gap:8}}>
               {selected.map(r=>{const sv=getServings(r);const ns=nutritionScore(r.cal,r.protein,r.carbs,r.fat);return(
-                <div key={r.id} style={{background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,overflow:"hidden"}}>
+                <div key={r.id} style={{background:T.surface,borderRadius:12,border:"1px solid "+T.border,overflow:"hidden"}}>
                   <div style={{display:"flex",gap:12,alignItems:"center",padding:14}}>
-                    {r.photo?<img src={r.photo} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover"}}/>:<div style={{fontSize:24,flexShrink:0}}>{r.img}</div>}
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:6}}>{r.name}<span style={{fontSize:10,fontWeight:700,color:ns.color,padding:"1px 5px",borderRadius:6,background:`${ns.color}18`}}>{ns.grade}</span></div>
-                      <div style={{fontSize:11,color:T.silverMuted,marginTop:1}}><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(sv/r.servings))} cal</span> · {r.time}m · P:{Math.round(r.protein*(sv/r.servings))}g</div>
-                    </div>
-                    {/* Serving adjuster */}
+                    <div style={{fontSize:24,flexShrink:0}}>{r.img}</div>
+                    <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:6}}>{r.name}<span style={{fontSize:10,fontWeight:700,color:ns.color,padding:"1px 5px",borderRadius:6,background:ns.color+"18"}}>{ns.grade}</span></div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(sv/r.servings))} cal</span> {"\u00B7"} {r.time}m</div></div>
                     <div style={{display:"flex",alignItems:"center",gap:4,background:T.surfaceAlt,borderRadius:8,padding:"4px 6px"}}>
-                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv-1);}} style={{width:22,height:22,borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>−</button>
+                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv-1);}} style={{width:22,height:22,borderRadius:6,border:"1px solid "+T.border,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>{"\u2212"}</button>
                       <span style={{fontSize:12,fontWeight:600,color:T.silverBright,minWidth:16,textAlign:"center"}}>{sv}</span>
-                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv+1);}} style={{width:22,height:22,borderRadius:6,border:`1px solid ${T.border}`,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>+</button>
-                      <span style={{fontSize:9,color:T.silverMuted}}>srv</span>
+                      <button onClick={(e)=>{e.stopPropagation();setServings(r.id,sv+1);}} style={{width:22,height:22,borderRadius:6,border:"1px solid "+T.border,background:T.surface,color:T.silver,cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>+</button>
                     </div>
-                    <button onClick={()=>setExpanded(expanded===r.id?null:r.id)} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 8px",fontSize:10,color:T.silverMuted,cursor:"pointer"}}>{expanded===r.id?"▲":"▼"}</button>
-                    <button onClick={()=>toggle(r)} style={{background:"none",border:`1px solid ${T.danger}33`,borderRadius:6,padding:"4px 10px",fontSize:10,color:T.danger,cursor:"pointer"}}>✕</button>
+                    <button onClick={()=>toggle(r)} style={{background:"none",border:"1px solid "+T.danger+"33",borderRadius:6,padding:"4px 10px",fontSize:10,color:T.danger,cursor:"pointer"}}>{"\u2715"}</button>
                   </div>
-                  {expanded===r.id&&(<div style={{padding:"0 14px 14px",borderTop:`1px solid ${T.surfaceAlt}`}}><div style={{fontSize:11,fontWeight:600,color:T.silverMuted,margin:"10px 0 6px",textTransform:"uppercase",letterSpacing:"0.04em"}}>Ingredients (×{sv} servings)</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3}}>{r.ingredients.map((ing,i)=>{const have=userHas(ing.n,myIngs);const scaled=scaleIng(ing,r.servings,sv);return(<div key={i} style={{fontSize:11,color:have?T.accent1:T.silver,padding:"3px 0",display:"flex",gap:5}}><span style={{color:CAT_COLORS[ing.cat],fontSize:9}}>{CAT_ICONS[ing.cat]}</span><span style={{textDecoration:have?"line-through":"none"}}>{ing.n}</span>{have&&<span style={{fontSize:8,color:T.accent1}}>✓</span>}<span style={{color:T.textMuted,marginLeft:"auto",fontSize:10}}>{fmtAmt(scaled.a,scaled.u)}</span></div>);})}</div></div>)}
                 </div>
               );})}
             </div>
             <div style={{display:"flex",gap:8,marginTop:16}}>
-              <button onClick={()=>setView("shop")} style={{flex:1,background:T.gradAccent,color:"#fff",border:"none",padding:"11px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>🛒 Shopping List ({shopList.length})</button>
-              <button onClick={()=>setSelected([])} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 18px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>Clear</button>
+              <button onClick={()=>setView("shop")} style={{flex:1,background:T.gradAccent,color:"#fff",border:"none",padding:"11px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>{"\uD83D\uDED2"} Shopping List ({shopList.length})</button>
+              <button onClick={()=>setSelected([])} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:10,padding:"11px 18px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>Clear</button>
             </div>
-          </>)}
-          {!isPremium&&<div style={{marginTop:16}}><AdBanner variant="sidebar"/></div>}
+          </React.Fragment>)}
         </div>)}
+
+        {/* ═══ CALENDAR ═══ */}
+        {view==="calendar"&&(function(){
+          var DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+          var MEALS=["breakfast","lunch","dinner","snack"];
+          var MEAL_ICONS={breakfast:"\uD83C\uDF05",lunch:"\u2600\uFE0F",dinner:"\uD83C\uDF19",snack:"\uD83C\uDF7F"};
+          var MEAL_COLORS={breakfast:T.gold,lunch:T.accent1,dinner:T.accent2,snack:T.accent3};
+          var totalCal=0;var mealCount=0;
+          Object.keys(weekMeals).forEach(function(k){var r=weekMeals[k];if(r){totalCal+=r.cal;mealCount++;}});
+          return(<div className="fade-up">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
+              <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Weekly Meal Calendar</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>{mealCount} meals planned{mealCount>0?" \u00B7 "+totalCal+" total cal":""}</p></div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={function(){setView("browse");}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ Add Recipe</button>
+                {mealCount>0&&<button onClick={function(){clearWeekCalendar();}} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:8,padding:"8px 14px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>Clear All</button>}
+              </div>
+            </div>
+            <div style={{display:"grid",gap:12}}>
+              {DAYS.map(function(day){
+                var dayMeals=MEALS.map(function(meal){return{meal:meal,recipe:weekMeals[day+"_"+meal]||null};});
+                var hasMeals=dayMeals.some(function(m){return m.recipe;});
+                var dayCal=dayMeals.reduce(function(s,m){return s+(m.recipe?m.recipe.cal:0);},0);
+                return(<div key={day} style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,overflow:"hidden"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:T.surfaceAlt,borderBottom:"1px solid "+T.border}}>
+                    <div style={{fontSize:15,fontWeight:700,color:T.silverBright}}>{day}</div>
+                    {hasMeals&&<div style={{fontSize:11,color:T.gold,fontWeight:600}}>{dayCal} cal</div>}
+                  </div>
+                  <div style={{padding:"8px 12px"}}>
+                    {dayMeals.map(function(slot){
+                      return(<CalendarMealSlot key={slot.meal} recipe={slot.recipe} mealIcon={MEAL_ICONS[slot.meal]} mealColor={MEAL_COLORS[slot.meal]} mealName={slot.meal} onView={function(r){setViewRecipe(r);}} onRemove={function(){removeFromCalendar(day,slot.meal);}} onAdd={function(){setCalendarPicker({day:day,meal:slot.meal});}}/>);
+                    })}
+                  </div>
+                </div>);
+              })}
+            </div>
+          </div>);
+        })()}
 
         {/* ═══ SHOPPING ═══ */}
-        {view==="shop"&&(<div className="fade-up"><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}><div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Shopping List</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>{shopList.length>0?<>{shopList.length} items needed{myIngs.length>0&&<span style={{color:T.accent1}}> · {myIngs.length} excluded</span>}</>:"Select recipes first"}</p></div>{shopList.length>0&&<button onClick={()=>setShopCheck({})} style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,padding:"6px 12px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>Reset</button>}</div>
-          {shopList.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:`1px solid ${T.border}`}}><div style={{fontSize:36}}>🛒</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>{selected.length>0?"You have everything!":"Select recipes first"}</div></div>):(
-          <div style={{background:T.surface,borderRadius:14,border:`1px solid ${T.border}`,padding:18}}>
-            <div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.silverMuted,marginBottom:3}}><span>Progress</span><span>{Object.values(shopCheck).filter(Boolean).length}/{shopList.length}</span></div><div style={{height:5,background:T.ringTrack,borderRadius:3,overflow:"hidden"}}><div style={{width:`${(Object.values(shopCheck).filter(Boolean).length/shopList.length)*100}%`,height:"100%",background:T.gradAccent,borderRadius:3,transition:"width 0.3s"}}/></div></div>
-            {Object.entries(shopGroups).map(([cat,items])=><ShoppingCategory key={cat} cat={cat} items={items} checked={shopCheck} onToggle={n=>setShopCheck(p=>({...p,[n]:!p[n]}))}/>)}
+        {view==="shop"&&(<div className="fade-up"><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Shopping List</h2><p style={{margin:"3px 0 16px",fontSize:12,color:T.silverMuted}}>{shopList.length>0?shopList.length+" items needed":"Select recipes first"}{myIngs.length>0&&shopList.length>0&&<span style={{color:T.accent1}}> {"\u00B7"} {myIngs.length} excluded</span>}</p>
+          {shopList.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83D\uDED2"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>{selected.length>0?"You have everything!":"Select recipes first"}</div></div>):(
+          <div style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,padding:18}}>
+            <div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.silverMuted,marginBottom:3}}><span>Progress</span><span>{Object.values(shopCheck).filter(Boolean).length}/{shopList.length}</span></div><div style={{height:5,background:T.ringTrack,borderRadius:3,overflow:"hidden"}}><div style={{width:(Object.values(shopCheck).filter(Boolean).length/shopList.length)*100+"%",height:"100%",background:T.gradAccent,borderRadius:3,transition:"width 0.3s"}}/></div></div>
+            {Object.entries(shopGroups).map(function(entry){return <ShoppingCategory key={entry[0]} cat={entry[0]} items={entry[1]} checked={shopCheck} onToggle={function(n){setShopCheck(function(p){var o=Object.assign({},p);o[n]=!o[n];return o;});}}/>;})
+            }
           </div>)}
-          {!isPremium&&shopList.length>0&&<div style={{marginTop:16}}><AdBanner variant="inline"/></div>}
         </div>)}
 
-        {/* ═══ LEFTOVERS TRACKER ═══ */}
+        {/* ═══ LEFTOVERS ═══ */}
         {view==="leftovers"&&(function(){
           var sorted=leftovers.slice().sort(function(a,b){return new Date(a.expiresDate)-new Date(b.expiresDate);});
           var todayDate=new Date(today);
           return(<div className="fade-up">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
-              <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{"\uD83E\uDD61"} Leftover Tracker</h2>
-              <p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Track what's in your fridge — use it before it expires</p></div>
+              <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{"\uD83E\uDD61"} Leftover Tracker</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Track what's in your fridge</p></div>
               <button onClick={function(){setShowAddLeftover(true);}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ Add Leftover</button>
             </div>
-
-            {showAddLeftover&&(function(){
-              var lf={name:"",qty:"1",unit:"serving",days:"3"};
-              return(<div style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,padding:20,marginBottom:16}}>
-                <div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:12}}>Add Leftover</div>
-                <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:8,marginBottom:12}}>
-                  <input id="lf-name" placeholder="Food name" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"}}/>
-                  <input id="lf-qty" placeholder="Qty" defaultValue="1" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"}}/>
-                  <select id="lf-unit" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"}}>
-                    <option value="serving">serving</option><option value="cups">cups</option><option value="pieces">pieces</option><option value="oz">oz</option><option value="container">container</option>
-                  </select>
-                  <input id="lf-days" placeholder="Days" defaultValue="3" type="number" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,background:T.inputBg,color:T.text,fontFamily:"'Manrope',sans-serif"}}/>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={function(){
-                    var n=document.getElementById("lf-name").value;if(!n)return;
-                    var q=document.getElementById("lf-qty").value||"1";
-                    var u=document.getElementById("lf-unit").value;
-                    var d=parseInt(document.getElementById("lf-days").value)||3;
-                    var exp=new Date();exp.setDate(exp.getDate()+d);
-                    var arr=leftovers.concat([{name:n,qty:q,unit:u,addedDate:today,expiresDate:exp.toISOString().slice(0,10)}]);
-                    saveLeftovers(arr);setShowAddLeftover(false);
-                  }} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>Save</button>
-                  <button onClick={function(){setShowAddLeftover(false);}} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:8,padding:"9px 18px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>Cancel</button>
-                </div>
-              </div>);
-            })()}
-
-            {sorted.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83E\uDD61"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>No leftovers tracked</div><div style={{fontSize:12,color:T.silverMuted,marginTop:4}}>Add food from your fridge to track expiration dates</div></div>):(
+            {showAddLeftover&&(<div style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,padding:20,marginBottom:16}}>
+              <div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:12}}>Add Leftover</div>
+              <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                <input id="lf-name" placeholder="Food name" style={inp}/>
+                <input id="lf-qty" placeholder="Qty" defaultValue="1" style={inp}/>
+                <select id="lf-unit" style={inp}><option value="serving">serving</option><option value="cups">cups</option><option value="pieces">pieces</option><option value="oz">oz</option><option value="container">container</option></select>
+                <input id="lf-days" placeholder="Days" defaultValue="3" type="number" style={inp}/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={function(){var n=document.getElementById("lf-name").value;if(!n)return;var q=document.getElementById("lf-qty").value||"1";var u=document.getElementById("lf-unit").value;var d=parseInt(document.getElementById("lf-days").value)||3;var exp=new Date();exp.setDate(exp.getDate()+d);saveLeftovers(leftovers.concat([{name:n,qty:q,unit:u,addedDate:today,expiresDate:exp.toISOString().slice(0,10)}]));setShowAddLeftover(false);}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"9px 18px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer"}}>Save</button>
+                <button onClick={function(){setShowAddLeftover(false);}} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:8,padding:"9px 18px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>Cancel</button>
+              </div>
+            </div>)}
+            {sorted.length===0?(<div style={{background:T.surface,borderRadius:14,padding:36,textAlign:"center",border:"1px solid "+T.border}}><div style={{fontSize:36}}>{"\uD83E\uDD61"}</div><div style={{fontSize:14,fontWeight:500,color:T.silverBright,marginTop:8}}>No leftovers tracked</div></div>):(
             <div style={{display:"grid",gap:8}}>
-              {sorted.map(function(item,i){
-                var expDate=new Date(item.expiresDate);
-                var daysLeft=Math.ceil((expDate-todayDate)/(1000*60*60*24));
-                var urgent=daysLeft<=1;var warning=daysLeft<=3&&!urgent;var expired=daysLeft<0;
-                var statusColor=expired?T.danger:urgent?T.danger:warning?T.gold:T.accent1;
-                var statusText=expired?"EXPIRED":daysLeft===0?"Today":daysLeft===1?"Tomorrow":daysLeft+" days left";
+              {sorted.map(function(item,i){var expDate=new Date(item.expiresDate);var daysLeft=Math.ceil((expDate-todayDate)/(1000*60*60*24));var expired=daysLeft<0;var urgent=daysLeft<=1&&!expired;var warning=daysLeft<=3&&!urgent&&!expired;var statusColor=expired?T.danger:urgent?T.danger:warning?T.gold:T.accent1;var statusText=expired?"EXPIRED":daysLeft===0?"Today":daysLeft===1?"Tomorrow":daysLeft+" days";
                 return(<div key={i} style={{background:T.surface,borderRadius:12,padding:14,border:"1px solid "+(expired||urgent?T.danger+"44":T.border),display:"flex",alignItems:"center",gap:12}}>
                   <div style={{width:44,height:44,borderRadius:10,background:statusColor+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{expired?"\u26A0\uFE0F":urgent?"\uD83D\uDD25":warning?"\u23F3":"\u2705"}</div>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:13,fontWeight:600,color:T.text}}>{item.name}</div>
-                    <div style={{fontSize:11,color:T.silverMuted}}>{item.qty} {item.unit} \u00B7 Added {item.addedDate}</div>
-                  </div>
-                  <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:12,fontWeight:700,color:statusColor}}>{statusText}</div>
-                    <div style={{fontSize:10,color:T.silverMuted}}>Exp: {item.expiresDate}</div>
-                  </div>
-                  <button onClick={function(){var arr=leftovers.filter(function(_,idx){return idx!==i;});saveLeftovers(arr);}} style={{width:24,height:24,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>{"\u00D7"}</button>
+                  <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:T.text}}>{item.name}</div><div style={{fontSize:11,color:T.silverMuted}}>{item.qty} {item.unit}</div></div>
+                  <div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:12,fontWeight:700,color:statusColor}}>{statusText}</div></div>
+                  <button onClick={function(){saveLeftovers(leftovers.filter(function(_,idx){return idx!==i;}));}} style={{width:24,height:24,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>{"\u00D7"}</button>
                 </div>);
               })}
             </div>)}
           </div>);
         })()}
 
-        {/* ═══ NUTRITION TRACKER ═══ */}
+        {/* ═══ NUTRITION ═══ */}
         {view==="nutrition"&&(<div className="fade-up">
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
-            <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Nutrition Tracker</h2><p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>Track calories, macros, and stay on target</p></div>
+            <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Nutrition Tracker</h2></div>
             <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setAiScanner("calories")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>📸 Snap Meal</button>
-              <button onClick={()=>setEditGoals(!editGoals)} style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 14px",fontSize:11,color:T.silver,cursor:"pointer"}}>⚙️ Goals</button>
+              <button onClick={()=>setAiScanner("calories")} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>{"\uD83D\uDCF8"} Snap Meal</button>
+              <button onClick={()=>setEditGoals(!editGoals)} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:8,padding:"8px 14px",fontSize:11,color:T.silver,cursor:"pointer"}}>{"\u2699\uFE0F"} Goals</button>
             </div>
           </div>
-
-          {/* Goals editor */}
-          {editGoals&&(<div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Daily Nutrition Goals</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
-              {[{k:"calories",l:"Calories",u:""},{k:"protein",l:"Protein",u:"g"},{k:"carbs",l:"Carbs",u:"g"},{k:"fat",l:"Fat",u:"g"}].map(g=>(<div key={g.k}><div style={{fontSize:10,color:T.silverMuted,marginBottom:3}}>{g.l}{g.u&&` (${g.u})`}</div><input type="number" value={goals[g.k]} onChange={e=>setGoals(p=>({...p,[g.k]:parseInt(e.target.value)||0}))} style={inp}/></div>))}
-            </div>
-          </div>)}
-
-          {/* Daily overview - donut + macros */}
+          {editGoals&&(<div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border,marginBottom:16}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Daily Goals</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>{[{k:"calories",l:"Calories"},{k:"protein",l:"Protein (g)"},{k:"carbs",l:"Carbs (g)"},{k:"fat",l:"Fat (g)"}].map(g=>(<div key={g.k}><div style={{fontSize:10,color:T.silverMuted,marginBottom:3}}>{g.l}</div><input type="number" value={goals[g.k]} onChange={e=>setGoals(p=>({...p,[g.k]:parseInt(e.target.value)||0}))} style={inp}/></div>))}</div></div>)}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-            <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",alignItems:"center"}}>
-              <DonutChart value={todayTotal.cal} max={goals.calories} size={130} strokeWidth={12} color={T.accent1} label="Calories Today" sublabel={`${goals.calories-todayTotal.cal} remaining`}/>
-            </div>
-            <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`}}>
-              <div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Macros</div>
-              <MacroBar label="Protein" value={todayTotal.protein} max={goals.protein} color={T.accent1}/>
-              <MacroBar label="Carbs" value={todayTotal.carbs} max={goals.carbs} color={T.accent2}/>
-              <MacroBar label="Fat" value={todayTotal.fat} max={goals.fat} color={T.accent3}/>
-            </div>
+            <div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border,display:"flex",flexDirection:"column",alignItems:"center"}}><DonutChart value={todayTotal.cal} max={goals.calories} size={130} strokeWidth={12} color={T.accent1} label="Calories Today" sublabel={(goals.calories-todayTotal.cal)+" remaining"}/></div>
+            <div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright,marginBottom:10}}>Macros</div><MacroBar label="Protein" value={todayTotal.protein} max={goals.protein} color={T.accent1}/><MacroBar label="Carbs" value={todayTotal.carbs} max={goals.carbs} color={T.accent2}/><MacroBar label="Fat" value={todayTotal.fat} max={goals.fat} color={T.accent3}/></div>
           </div>
-
-          {/* Weekly chart + streak */}
           <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:12,marginBottom:16}}>
             <WeeklyBarChart data={weekData} max={goals.calories} color={T.accent2} label="Weekly Calories"/>
             <StreakTracker streak={streak} best={bestStreak}/>
           </div>
-
-          {/* Today's meal log */}
-          <div style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:13,fontWeight:600,color:T.silverBright}}>Today's Log</div>
-              <button onClick={()=>setAiScanner("calories")} style={{background:T.accent1Bg,border:`1px solid ${T.accent1Dim}`,borderRadius:6,padding:"4px 10px",fontSize:11,color:T.accent1,cursor:"pointer",fontWeight:600}}>+ Log Meal</button>
-            </div>
-            {todayLog.length===0&&selected.length===0?(<div style={{fontSize:12,color:T.silverMuted,textAlign:"center",padding:16}}>No meals logged today. Use "📸 Snap Meal" or add recipes to your plan.</div>):(
-              <div>{todayLog.map((l,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.surfaceAlt}`,fontSize:12}}><span style={{color:T.text}}>{l.name}</span><span style={{color:T.gold,fontWeight:600}}>{l.cal} cal</span></div>))}
-              {selected.map(r=>(<div key={r.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.surfaceAlt}`,fontSize:12}}><span style={{color:T.text}}>{r.img} {r.name} <span style={{color:T.silverMuted}}>(plan)</span></span><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(getServings(r)/r.servings))} cal</span></div>))}</div>
+          {/* Water */}
+          <div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border,marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright}}>{"\uD83D\uDCA7"} Water Intake</div><span style={{fontSize:11,color:todayWater>=waterGoal?T.accent1:T.silverMuted,fontWeight:600}}>{todayWater} / {waterGoal} glasses</span></div>
+            <div style={{display:"flex",gap:4,marginBottom:8}}>{[1,2,3,4,5,6,7,8].map(function(g){return(<div key={g} style={{flex:1,height:32,borderRadius:6,background:g<=todayWater?T.accent2:T.ringTrack,transition:"background 0.3s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:g<=todayWater?"#fff":T.textMuted}}>{g<=todayWater?"\uD83D\uDCA7":g}</div>);})}</div>
+            <div style={{display:"flex",gap:6}}><button onClick={function(){addWater(1);}} style={{flex:1,background:T.accent2Bg,border:"1px solid "+T.accent2Dim,borderRadius:8,padding:"8px",fontSize:12,color:T.accent2,cursor:"pointer",fontWeight:600}}>+ 1 Glass</button><button onClick={function(){addWater(2);}} style={{flex:1,background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"8px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>+ 2</button>{todayWater>0&&<button onClick={function(){addWater(-1);}} style={{background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"8px 12px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>{"\u2212"} 1</button>}</div>
+            {todayWater>=waterGoal&&<div style={{textAlign:"center",marginTop:8,fontSize:12,color:T.accent1,fontWeight:600}}>{"\u2705"} Goal reached!</div>}
+          </div>
+          {/* Today's log */}
+          <div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontSize:13,fontWeight:600,color:T.silverBright}}>Today's Log</div><button onClick={()=>setAiScanner("calories")} style={{background:T.accent1Bg,border:"1px solid "+T.accent1Dim,borderRadius:6,padding:"4px 10px",fontSize:11,color:T.accent1,cursor:"pointer",fontWeight:600}}>+ Log Meal</button></div>
+            {todayLog.length===0&&selected.length===0?(<div style={{fontSize:12,color:T.silverMuted,textAlign:"center",padding:16}}>No meals logged today.</div>):(
+              <div>{todayLog.map((l,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+T.surfaceAlt,fontSize:12}}><span style={{color:T.text}}>{l.name}</span><span style={{color:T.gold,fontWeight:600}}>{l.cal} cal</span></div>))}{selected.map(r=>(<div key={r.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid "+T.surfaceAlt,fontSize:12}}><span style={{color:T.text}}>{r.img} {r.name} <span style={{color:T.silverMuted}}>(plan)</span></span><span style={{color:T.gold,fontWeight:600}}>{Math.round(r.cal*(getServings(r)/r.servings))} cal</span></div>))}</div>
             )}
           </div>
-
-          {/* Water intake tracker */}
-          <div style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border,marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:13,fontWeight:600,color:T.silverBright}}>{"\uD83D\uDCA7"} Water Intake</div>
-              <span style={{fontSize:11,color:todayWater>=waterGoal?T.accent1:T.silverMuted,fontWeight:600}}>{todayWater} / {waterGoal} glasses</span>
-            </div>
-            <div style={{display:"flex",gap:4,marginBottom:8}}>
-              {[1,2,3,4,5,6,7,8].map(function(g){return(
-                <div key={g} style={{flex:1,height:32,borderRadius:6,background:g<=todayWater?T.accent2:T.ringTrack,transition:"background 0.3s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:g<=todayWater?"#fff":T.textMuted}}>{g<=todayWater?"\uD83D\uDCA7":g}</div>
-              );})}
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={function(){addWater(1);}} style={{flex:1,background:T.accent2Bg,border:"1px solid "+T.accent2Dim,borderRadius:8,padding:"8px",fontSize:12,color:T.accent2,cursor:"pointer",fontWeight:600}}>+ 1 Glass</button>
-              <button onClick={function(){addWater(2);}} style={{flex:1,background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"8px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>+ 2 Glasses</button>
-              {todayWater>0&&<button onClick={function(){addWater(-1);}} style={{background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"8px 12px",fontSize:12,color:T.silverMuted,cursor:"pointer"}}>{"\u2212"} 1</button>}
-            </div>
-            {todayWater>=waterGoal&&<div style={{textAlign:"center",marginTop:8,fontSize:12,color:T.accent1,fontWeight:600}}>{"\u2705"} Daily water goal reached!</div>}
-          </div>
-
-          {!isPremium&&<AdBanner variant="inline"/>}
         </div>)}
 
         {/* ═══ INTEGRATIONS ═══ */}
-        {view==="connect"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Integrations</h2><p style={{margin:"0 0 20px",fontSize:12,color:T.silverMuted}}>Connect platforms for more recipes — coming soon!</p>
-          {!isPremium?(<div style={{background:T.accent3Bg,border:`1px solid ${T.accent3Dim}`,borderRadius:14,padding:24,textAlign:"center"}}><div style={{fontSize:32}}>👑</div><div style={{fontSize:16,fontWeight:600,color:T.accent3,marginTop:6,marginBottom:4}}>Premium Integrations</div><div style={{fontSize:12,color:T.silverMuted,marginBottom:14}}>One-time $4.99 · No ads · 1,000+ recipes</div><button onClick={()=>{setIsPremium(true);}} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 24px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Unlock — $4.99</button></div>):(
-          <div>
-            <div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:16,border:`1px solid ${T.border}`,textAlign:"center"}}><div style={{fontSize:28,marginBottom:6}}>🚀</div><div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:4}}>Integrations Coming Soon</div><div style={{fontSize:12,color:T.silverMuted,lineHeight:1.5}}>We're working on connecting PantrySpark to your favorite platforms. These integrations are in development and will be available in a future update.</div></div>
-            <div style={{display:"grid",gap:12}}>{[{name:"Pinterest",icon:"📌",desc:"Import recipe pins from your boards and collections",color:"#e60023"},{name:"Kindle / eBooks",icon:"📚",desc:"Pull recipes from your Kindle cookbooks",color:"#ff9900"},{name:"Instagram",icon:"📷",desc:"Save recipes from your bookmarked posts and reels",color:"#c13584"},{name:"YouTube",icon:"▶️",desc:"Import ingredients from cooking video descriptions",color:"#ff0000"},{name:"Allrecipes",icon:"🍴",desc:"Sync your favorites and recipe collections",color:"#e86c28"},{name:"TikTok",icon:"🎵",desc:"Import trending recipe videos you've saved",color:"#69C9D0"}].map(function(int){return(<div key={int.name} style={{background:T.surface,borderRadius:12,padding:16,border:`1px solid ${T.border}`,display:"flex",gap:14,alignItems:"center",opacity:0.75}}><div style={{width:44,height:44,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:`${int.color}15`,flexShrink:0}}>{int.icon}</div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text,display:"flex",alignItems:"center",gap:5}}>{int.name}<PremiumBadge/></div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}>{int.desc}</div></div><div style={{background:T.surfaceAlt,color:T.silverMuted,padding:"7px 14px",borderRadius:8,fontSize:11,fontWeight:600,border:`1px solid ${T.border}`,whiteSpace:"nowrap"}}>Coming Soon</div></div>);})}</div>
+        {view==="connect"&&(<div className="fade-up"><h2 style={{margin:"0 0 4px",fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Integrations</h2><p style={{margin:"0 0 20px",fontSize:12,color:T.silverMuted}}>Coming soon!</p>
+          {!isPremium?(<div style={{background:T.accent3Bg,border:"1px solid "+T.accent3Dim,borderRadius:14,padding:24,textAlign:"center"}}><div style={{fontSize:32}}>{"\uD83D\uDC51"}</div><div style={{fontSize:16,fontWeight:600,color:T.accent3,marginTop:6,marginBottom:4}}>Premium Integrations</div><button onClick={()=>{setIsPremium(true);}} style={{background:T.gradPremium,color:"#fff",border:"none",padding:"10px 24px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer"}}>Unlock {"\u2014"} $4.99</button></div>):(
+          <div><div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:16,border:"1px solid "+T.border,textAlign:"center"}}><div style={{fontSize:28,marginBottom:6}}>{"\uD83D\uDE80"}</div><div style={{fontSize:14,fontWeight:600,color:T.silverBright,marginBottom:4}}>Integrations Coming Soon</div><div style={{fontSize:12,color:T.silverMuted}}>We're working on connecting PantrySpark to your favorite platforms.</div></div>
+            <div style={{display:"grid",gap:12}}>{[{name:"Pinterest",icon:"\uD83D\uDCCC",desc:"Import recipe pins",color:"#e60023"},{name:"Kindle",icon:"\uD83D\uDCDA",desc:"Pull from cookbooks",color:"#ff9900"},{name:"Instagram",icon:"\uD83D\uDCF7",desc:"Save bookmarked recipes",color:"#c13584"},{name:"YouTube",icon:"\u25B6\uFE0F",desc:"Import from cooking videos",color:"#ff0000"},{name:"Allrecipes",icon:"\uD83C\uDF74",desc:"Sync favorites",color:"#e86c28"},{name:"TikTok",icon:"\uD83C\uDFB5",desc:"Import trending recipes",color:"#69C9D0"}].map(function(int){return(<div key={int.name} style={{background:T.surface,borderRadius:12,padding:16,border:"1px solid "+T.border,display:"flex",gap:14,alignItems:"center",opacity:0.75}}><div style={{width:44,height:44,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,background:int.color+"15",flexShrink:0}}>{int.icon}</div><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:T.text}}>{int.name}</div><div style={{fontSize:11,color:T.silverMuted,marginTop:1}}>{int.desc}</div></div><div style={{background:T.surfaceAlt,color:T.silverMuted,padding:"7px 14px",borderRadius:8,fontSize:11,fontWeight:600,border:"1px solid "+T.border}}>Coming Soon</div></div>);})}</div>
           </div>)}
         </div>)}
 
-        {/* ═══ WEEKLY CALENDAR ═══ */}
-        {view==="calendar"&&(function(){
-          var DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-          var MEALS=["breakfast","lunch","dinner","snack"];
-          var MEAL_ICONS={breakfast:"🌅",lunch:"☀️",dinner:"🌙",snack:"🍿"};
-          var MEAL_COLORS={breakfast:T.gold,lunch:T.accent1,dinner:T.accent2,snack:T.accent3};
-          var totalCal=0;var totalProtein=0;var mealCount=0;
-          Object.keys(weekMeals).forEach(function(k){var r=weekMeals[k];if(r){totalCal+=r.cal;totalProtein+=r.protein;mealCount++;}});
-
-          return(<div className="fade-up">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
-              <div><h2 style={{margin:0,fontSize:20,fontFamily:"'Fraunces',serif",color:T.silverBright}}>Weekly Meal Calendar</h2>
-              <p style={{margin:"3px 0 0",fontSize:12,color:T.silverMuted}}>{mealCount} meals planned{mealCount>0?" \u00B7 "+totalCal+" total cal \u00B7 "+totalProtein+"g protein":""}</p></div>
-              <div style={{display:"flex",gap:6}}>
-                <button onClick={function(){setView("browse");}} style={{background:T.gradAccent,color:"#fff",border:"none",padding:"8px 14px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ Add Recipe</button>
-                {mealCount>0&&<button onClick={function(){clearWeekCalendar();}} style={{background:T.surface,border:"1px solid "+T.border,borderRadius:8,padding:"8px 14px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>Clear All</button>}
-              </div>
-            </div>
-
-            {/* Calendar grid */}
-            <div style={{display:"grid",gap:12}}>
-              {DAYS.map(function(day){
-                var dayMeals=MEALS.map(function(meal){return{meal:meal,recipe:weekMeals[day+"_"+meal]||null};});
-                var hasMeals=dayMeals.some(function(m){return m.recipe;});
-                var dayCal=dayMeals.reduce(function(s,m){return s+(m.recipe?m.recipe.cal:0);},0);
-
-                return(<div key={day} style={{background:T.surface,borderRadius:14,border:"1px solid "+T.border,overflow:"hidden"}}>
-                  {/* Day header */}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:T.surfaceAlt,borderBottom:"1px solid "+T.border}}>
-                    <div style={{fontSize:15,fontWeight:700,color:T.silverBright}}>{day}</div>
-                    {hasMeals&&<div style={{fontSize:11,color:T.gold,fontWeight:600}}>{dayCal} cal</div>}
-                  </div>
-
-                  {/* Meal slots */}
-                  <div style={{padding:"8px 12px"}}>
-                    {dayMeals.map(function(slot){
-                      return(<CalendarMealSlot key={slot.meal} recipe={slot.recipe} mealKey={day+"_"+slot.meal} mealIcon={MEAL_ICONS[slot.meal]} mealColor={MEAL_COLORS[slot.meal]} mealName={slot.meal} onView={function(r){setViewRecipe(r);}} onRemove={function(){removeFromCalendar(day,slot.meal);}} onAdd={function(){setCalendarPicker({day:day,meal:slot.meal});}}/>);
-                    })}
-                      </div>);
-                    })}
-                  </div>
-                </div>);
-              })}
-            </div>
-          </div>);
-        })()}
-
-        {/* ═══ MEASUREMENT CONVERTER ═══ */}
+        {/* ═══ CONVERTER ═══ */}
         {view==="convert"&&(function(){
-          var cats=[
-            {name:"Volume",conversions:[
-              {from:"cups",to:"tablespoons",factor:16,icon:"🥤"},
-              {from:"cups",to:"teaspoons",factor:48,icon:"🥤"},
-              {from:"cups",to:"fluid oz",factor:8,icon:"🥤"},
-              {from:"cups",to:"milliliters",factor:236.588,icon:"🥤"},
-              {from:"cups",to:"liters",factor:0.2366,icon:"🥤"},
-              {from:"tablespoons",to:"teaspoons",factor:3,icon:"🥄"},
-              {from:"tablespoons",to:"milliliters",factor:14.787,icon:"🥄"},
-              {from:"fluid oz",to:"milliliters",factor:29.574,icon:"💧"},
-              {from:"liters",to:"cups",factor:4.227,icon:"💧"},
-              {from:"gallons",to:"liters",factor:3.785,icon:"💧"},
-              {from:"quarts",to:"cups",factor:4,icon:"💧"},
-              {from:"pints",to:"cups",factor:2,icon:"💧"},
-            ]},
-            {name:"Weight",conversions:[
-              {from:"pounds",to:"ounces",factor:16,icon:"⚖️"},
-              {from:"pounds",to:"grams",factor:453.592,icon:"⚖️"},
-              {from:"pounds",to:"kilograms",factor:0.4536,icon:"⚖️"},
-              {from:"ounces",to:"grams",factor:28.3495,icon:"⚖️"},
-              {from:"kilograms",to:"pounds",factor:2.2046,icon:"⚖️"},
-            ]},
-            {name:"Temperature",conversions:[
-              {from:"°F",to:"°C",factor:"special_f_to_c",icon:"🌡️"},
-              {from:"°C",to:"°F",factor:"special_c_to_f",icon:"🌡️"},
-            ]},
-            {name:"Quick References",conversions:[
-              {from:"stick of butter",to:"tablespoons",factor:8,icon:"🧈"},
-              {from:"stick of butter",to:"cups",factor:0.5,icon:"🧈"},
-              {from:"cups of flour",to:"grams",factor:120,icon:"🌾"},
-              {from:"cups of sugar",to:"grams",factor:200,icon:"🍬"},
-              {from:"cups of rice",to:"grams",factor:185,icon:"🍚"},
-              {from:"clove of garlic",to:"teaspoons minced",factor:0.5,icon:"🧄"},
-              {from:"one lemon juice",to:"tablespoons",factor:3,icon:"🍋"},
-              {from:"one lime juice",to:"tablespoons",factor:2,icon:"🍈"},
-            ]},
-          ];
-          var initState={amount:"1",fromUnit:"cups",toUnit:"tablespoons",result:"16",category:"Volume"};
-          return <MeasurementConverter cats={cats} init={initState}/>;
+          var cats=[{name:"Volume",conversions:[{from:"cups",to:"tablespoons",factor:16,icon:"\uD83E\uDD64"},{from:"cups",to:"teaspoons",factor:48,icon:"\uD83E\uDD64"},{from:"cups",to:"fluid oz",factor:8,icon:"\uD83E\uDD64"},{from:"cups",to:"milliliters",factor:236.588,icon:"\uD83E\uDD64"},{from:"tablespoons",to:"teaspoons",factor:3,icon:"\uD83E\uDD44"},{from:"tablespoons",to:"milliliters",factor:14.787,icon:"\uD83E\uDD44"},{from:"fluid oz",to:"milliliters",factor:29.574,icon:"\uD83D\uDCA7"},{from:"liters",to:"cups",factor:4.227,icon:"\uD83D\uDCA7"},{from:"quarts",to:"cups",factor:4,icon:"\uD83D\uDCA7"},{from:"pints",to:"cups",factor:2,icon:"\uD83D\uDCA7"}]},{name:"Weight",conversions:[{from:"pounds",to:"ounces",factor:16,icon:"\u2696\uFE0F"},{from:"pounds",to:"grams",factor:453.592,icon:"\u2696\uFE0F"},{from:"ounces",to:"grams",factor:28.3495,icon:"\u2696\uFE0F"},{from:"kilograms",to:"pounds",factor:2.2046,icon:"\u2696\uFE0F"}]},{name:"Temperature",conversions:[{from:"\u00B0F",to:"\u00B0C",factor:"special_f_to_c",icon:"\uD83C\uDF21\uFE0F"},{from:"\u00B0C",to:"\u00B0F",factor:"special_c_to_f",icon:"\uD83C\uDF21\uFE0F"}]},{name:"Quick Ref",conversions:[{from:"stick of butter",to:"tablespoons",factor:8,icon:"\uD83E\uDDC8"},{from:"stick of butter",to:"cups",factor:0.5,icon:"\uD83E\uDDC8"},{from:"cups of flour",to:"grams",factor:120,icon:"\uD83C\uDF3E"},{from:"cups of sugar",to:"grams",factor:200,icon:"\uD83C\uDF6C"},{from:"cups of rice",to:"grams",factor:185,icon:"\uD83C\uDF5A"}]}];
+          return <MeasurementConverter cats={cats} init={{amount:"1",fromUnit:"cups",toUnit:"tablespoons",result:"16",category:"Volume"}}/>;
         })()}
-      </div>
 
-      {/* Recipe Detail Modal */}
-      {viewRecipe&&<RecipeDetailModal recipe={viewRecipe} onClose={()=>setViewRecipe(null)} onAddToPlan={(r)=>toggle(r)} onAddToCalendar={(r)=>setCalendarPicker(r)} isInPlan={!!selected.find(s=>s.id===viewRecipe.id)} myIngs={myIngs} rating={ratings[viewRecipe.id]} onRate={setRating} isFav={favorites.indexOf(viewRecipe.id)!==-1} onToggleFav={toggleFav} note={recipeNotes[viewRecipe.id]} onSaveNote={saveNote} onStartTimer={function(r){setActiveTimer({recipeName:r.name,totalSec:r.time*60,remaining:r.time*60,running:true});}} onShare={function(r,sv){var ratio=sv/r.servings;var text=r.name+"\n\nServings: "+sv+"\nCalories: "+Math.round(r.cal*ratio)+"\nProtein: "+Math.round(r.protein*ratio)+"g\n\nIngredients:\n"+r.ingredients.map(function(ing){var s=scaleIng(ing,r.servings,sv);return"- "+fmtAmt(s.a,s.u)+" "+ing.n;}).join("\n")+"\n\nShared from PantrySpark";if(navigator.share){navigator.share({title:r.name,text:text});}else{navigator.clipboard.writeText(text).then(function(){alert("Recipe copied to clipboard!");});}}}/>}
+      </div>{/* end content area */}
 
-      {/* AI Scanner Modal */}
+      {/* ═══ MODALS ═══ */}
+      {viewRecipe&&<RecipeDetailModal recipe={viewRecipe} onClose={()=>setViewRecipe(null)} onAddToPlan={(r)=>toggle(r)} onAddToCalendar={(r)=>setCalendarPicker(r)} isInPlan={!!selected.find(s=>s.id===viewRecipe.id)} myIngs={myIngs} rating={ratings[viewRecipe.id]} onRate={setRating} isFav={favorites.indexOf(viewRecipe.id)!==-1} onToggleFav={toggleFav} note={recipeNotes[viewRecipe.id]} onSaveNote={saveNote} onStartTimer={function(r){setActiveTimer({recipeName:r.name,totalSec:r.time*60,remaining:r.time*60,running:true});}} onShare={shareRecipe}/>}
+
       {aiScanner&&<AIPhotoScanner mode={aiScanner} onResult={aiScanner==="calories"?logMeal:addAIRecipe} onClose={()=>setAiScanner(null)}/>}
 
-      {/* Calendar Picker Modal */}
       {calendarPicker&&(function(){
         var DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
         var MEALS=["breakfast","lunch","dinner","snack"];
         var MEAL_ICONS={breakfast:"\uD83C\uDF05",lunch:"\u2600\uFE0F",dinner:"\uD83C\uDF19",snack:"\uD83C\uDF7F"};
-        // If picker has a recipe (from detail modal "Add to Week"), show day/meal grid
-        // If picker has day+meal (from calendar slot), show recipe list
         var pickingRecipe=calendarPicker.day&&calendarPicker.meal;
-        var pickingSlot=calendarPicker.id; // has recipe id = it's a recipe object
+        var pickingSlot=calendarPicker.id;
         return(
           <div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:16}} onClick={function(){setCalendarPicker(null);}}>
-            <div onClick={function(e){e.stopPropagation();}} style={{background:T.surface,borderRadius:20,padding:24,maxWidth:480,width:"100%",maxHeight:"80vh",overflowY:"auto",border:"1px solid "+T.border,boxShadow:"0 20px 60px rgba(0,0,0,0.3)"}}>
-
-              {pickingSlot?(
-                <div>
-                  <h3 style={{margin:"0 0 4px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{"\uD83D\uDCC5"} Add to Weekly Calendar</h3>
-                  <p style={{margin:"0 0 16px",fontSize:13,color:T.silverMuted}}>Pick a day and meal for: <strong style={{color:T.text}}>{calendarPicker.name}</strong></p>
-                  <div style={{display:"grid",gap:8}}>
-                    {DAYS.map(function(day){
-                      return(<div key={day} style={{background:T.surfaceAlt,borderRadius:10,padding:12}}>
-                        <div style={{fontSize:13,fontWeight:700,color:T.silverBright,marginBottom:8}}>{day}</div>
-                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                          {MEALS.map(function(meal){
-                            var existing=weekMeals[day+"_"+meal];
-                            return(<button key={meal} onClick={function(){addToCalendar(day,meal,calendarPicker);setCalendarPicker(null);setView("calendar");}} style={{flex:1,minWidth:70,padding:"8px 6px",borderRadius:8,border:existing?"1px solid "+T.gold+"44":"1px solid "+T.border,background:existing?T.accent1Bg:T.surface,cursor:"pointer",textAlign:"center"}}>
-                              <div style={{fontSize:14}}>{MEAL_ICONS[meal]}</div>
-                              <div style={{fontSize:9,fontWeight:600,color:existing?T.accent1:T.silverMuted,textTransform:"capitalize"}}>{meal}</div>
-                              {existing&&<div style={{fontSize:8,color:T.silverMuted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{existing.name}</div>}
-                            </button>);
-                          })}
-                        </div>
-                      </div>);
-                    })}
-                  </div>
-                </div>
-              ):(
-                <div>
-                  <h3 style={{margin:"0 0 4px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{MEAL_ICONS[calendarPicker.meal]} {calendarPicker.day} {calendarPicker.meal}</h3>
-                  <p style={{margin:"0 0 12px",fontSize:13,color:T.silverMuted}}>Choose a recipe</p>
-                  <div style={{maxHeight:"55vh",overflowY:"auto",display:"grid",gap:6}}>
-                    {allRecipes.filter(function(r){return !r.isPremiumOnly||isPremium;}).slice(0,50).map(function(r){
-                      return(<RecipePickerItem key={r.id} recipe={r} onClick={function(){addToCalendar(calendarPicker.day,calendarPicker.meal,r);setCalendarPicker(null);}}/>);
-                    })}
-                    })}
-                  </div>
-                </div>
-              )}
-
+            <div onClick={function(e){e.stopPropagation();}} style={{background:T.surface,borderRadius:20,padding:24,maxWidth:480,width:"100%",maxHeight:"80vh",overflowY:"auto",border:"1px solid "+T.border}}>
+              {pickingSlot?(<div><h3 style={{margin:"0 0 4px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{"\uD83D\uDCC5"} Add to Calendar</h3><p style={{margin:"0 0 16px",fontSize:13,color:T.silverMuted}}>Pick a day and meal for: <strong style={{color:T.text}}>{calendarPicker.name}</strong></p>
+                <div style={{display:"grid",gap:8}}>{DAYS.map(function(day){return(<div key={day} style={{background:T.surfaceAlt,borderRadius:10,padding:12}}><div style={{fontSize:13,fontWeight:700,color:T.silverBright,marginBottom:8}}>{day}</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{MEALS.map(function(meal){var existing=weekMeals[day+"_"+meal];return(<button key={meal} onClick={function(){addToCalendar(day,meal,calendarPicker);setCalendarPicker(null);setView("calendar");}} style={{flex:1,minWidth:70,padding:"8px 6px",borderRadius:8,border:existing?"1px solid "+T.gold+"44":"1px solid "+T.border,background:existing?T.accent1Bg:T.surface,cursor:"pointer",textAlign:"center"}}><div style={{fontSize:14}}>{MEAL_ICONS[meal]}</div><div style={{fontSize:9,fontWeight:600,color:existing?T.accent1:T.silverMuted,textTransform:"capitalize"}}>{meal}</div>{existing&&<div style={{fontSize:8,color:T.silverMuted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{existing.name}</div>}</button>);})}</div></div>);})}</div>
+              </div>):(<div><h3 style={{margin:"0 0 4px",fontSize:18,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{MEAL_ICONS[calendarPicker.meal]} {calendarPicker.day} {calendarPicker.meal}</h3><p style={{margin:"0 0 12px",fontSize:13,color:T.silverMuted}}>Choose a recipe</p>
+                <div style={{maxHeight:"55vh",overflowY:"auto",display:"grid",gap:6}}>{allRecipes.filter(function(r){return !r.isPremiumOnly||isPremium;}).slice(0,50).map(function(r){return(<RecipePickerItem key={r.id} recipe={r} onClick={function(){addToCalendar(calendarPicker.day,calendarPicker.meal,r);setCalendarPicker(null);}}/>);})}</div>
+              </div>)}
               <button onClick={function(){setCalendarPicker(null);}} style={{width:"100%",background:"none",border:"1px solid "+T.border,borderRadius:8,padding:"10px",fontSize:13,color:T.silverMuted,cursor:"pointer",marginTop:14}}>Cancel</button>
             </div>
           </div>
         );
       })()}
 
-      {/* Upgrade Modal */}
-      {showUpgrade&&(<div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}} onClick={()=>setShowUpgrade(false)}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:18,padding:28,maxWidth:400,width:"100%",border:`1px solid ${T.border}`}}><div style={{textAlign:"center"}}><div style={{fontSize:42}}>👑</div><h2 style={{margin:"8px 0",fontSize:22,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{isPremium?"Premium Unlocked!":"Unlock PantrySpark Premium"}</h2><p style={{margin:"0 0 20px",fontSize:13,color:T.silverMuted}}>{isPremium?"All features yours forever.":"One-time purchase — yours forever."}</p></div><div style={{display:"grid",gap:8,marginBottom:20}}>{["Ad-free forever","1,000+ premium recipes","Pinterest & Kindle integration","Instagram & YouTube sync","AI recipe scanner","Advanced nutrition tracking","Export & share plans"].map(f=>(<div key={f} style={{display:"flex",gap:8,alignItems:"center",fontSize:12,color:T.silver}}><span style={{color:T.accent1,fontWeight:700}}>✓</span>{f}</div>))}</div>{!isPremium?(<><button onClick={()=>{setIsPremium(true);setShowUpgrade(false);}} style={{width:"100%",background:T.gradPremium,color:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>Buy Premium — $4.99 one-time</button><div style={{textAlign:"center",marginTop:6,fontSize:10,color:T.textMuted}}>No subscription. Pay once, own forever.</div></>):(<button onClick={()=>{setIsPremium(false);setShowUpgrade(false);}} style={{width:"100%",background:T.surfaceAlt,color:T.silverMuted,border:"none",padding:"12px",borderRadius:10,fontSize:12,cursor:"pointer"}}>Revert to Free (demo)</button>)}<button onClick={()=>setShowUpgrade(false)} style={{width:"100%",background:"none",border:"none",padding:"8px",fontSize:12,color:T.textMuted,cursor:"pointer",marginTop:4}}>Close</button></div></div>)}
+      {showUpgrade&&(<div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}} onClick={()=>setShowUpgrade(false)}><div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:18,padding:28,maxWidth:400,width:"100%",border:"1px solid "+T.border}}><div style={{textAlign:"center"}}><div style={{fontSize:42}}>{"\uD83D\uDC51"}</div><h2 style={{margin:"8px 0",fontSize:22,fontFamily:"'Fraunces',serif",color:T.silverBright}}>{isPremium?"Premium Unlocked!":"Unlock Premium"}</h2></div><div style={{display:"grid",gap:8,marginBottom:20}}>{["Ad-free forever","1,000+ premium recipes","All integrations","AI recipe scanner","Advanced nutrition","Export & share"].map(f=>(<div key={f} style={{display:"flex",gap:8,alignItems:"center",fontSize:12,color:T.silver}}><span style={{color:T.accent1,fontWeight:700}}>{"\u2713"}</span>{f}</div>))}</div>{!isPremium?(<button onClick={()=>{setIsPremium(true);setShowUpgrade(false);}} style={{width:"100%",background:T.gradPremium,color:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer"}}>Buy Premium {"\u2014"} $4.99</button>):(<button onClick={()=>{setIsPremium(false);setShowUpgrade(false);}} style={{width:"100%",background:T.surfaceAlt,color:T.silverMuted,border:"none",padding:"12px",borderRadius:10,fontSize:12,cursor:"pointer"}}>Revert to Free</button>)}<button onClick={()=>setShowUpgrade(false)} style={{width:"100%",background:"none",border:"none",padding:"8px",fontSize:12,color:T.textMuted,cursor:"pointer",marginTop:4}}>Close</button></div></div>)}
 
       {/* Floating Timer */}
       {activeTimer&&(function(){
-        var t=activeTimer;
-        var mins=Math.floor(t.remaining/60);
-        var secs=t.remaining%60;
-        var pct=((t.totalSec-t.remaining)/t.totalSec)*100;
-
+        var t=activeTimer;var mins=Math.floor(t.remaining/60);var secs=t.remaining%60;var pct=((t.totalSec-t.remaining)/t.totalSec)*100;
         return(<div style={{position:"fixed",bottom:20,right:20,background:T.surface,borderRadius:16,padding:16,border:"1px solid "+T.border,boxShadow:"0 8px 30px rgba(0,0,0,0.3)",zIndex:150,minWidth:220}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontSize:12,fontWeight:600,color:T.silverBright,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{"\u23F2"} {t.recipeName}</div>
-            <button onClick={function(){clearInterval(timerRef.current);setActiveTimer(null);}} style={{width:20,height:20,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>{"\u00D7"}</button>
-          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}><div style={{fontSize:12,fontWeight:600,color:T.silverBright,maxWidth:150,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{"\u23F2"} {t.recipeName}</div><button onClick={function(){clearInterval(timerRef.current);setActiveTimer(null);}} style={{width:20,height:20,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>{"\u00D7"}</button></div>
           <div style={{fontSize:32,fontWeight:800,color:t.remaining===0?T.accent1:T.silverBright,textAlign:"center",fontFamily:"monospace"}}>{t.remaining===0?"\u2705 Done!":String(mins).padStart(2,"0")+":"+String(secs).padStart(2,"0")}</div>
           <div style={{height:4,background:T.ringTrack,borderRadius:2,overflow:"hidden",marginTop:8,marginBottom:8}}><div style={{width:pct+"%",height:"100%",background:t.remaining===0?T.accent1:T.accent2,borderRadius:2,transition:"width 1s linear"}}/></div>
-          <div style={{display:"flex",gap:6}}>
-            <button onClick={function(){setActiveTimer(Object.assign({},t,{running:!t.running}));}} style={{flex:1,background:t.running?T.gold+"22":T.accent1Bg,border:"1px solid "+(t.running?T.gold+"44":T.accent1Dim),borderRadius:8,padding:"6px",fontSize:11,color:t.running?T.gold:T.accent1,cursor:"pointer",fontWeight:600}}>{t.running?"\u23F8 Pause":"\u25B6 Resume"}</button>
-            <button onClick={function(){setActiveTimer(Object.assign({},t,{remaining:t.totalSec,running:false}));}} style={{background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"6px 10px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>{"\u21BA"} Reset</button>
-          </div>
+          <div style={{display:"flex",gap:6}}><button onClick={function(){setActiveTimer(Object.assign({},t,{running:!t.running}));}} style={{flex:1,background:t.running?T.gold+"22":T.accent1Bg,border:"1px solid "+(t.running?T.gold+"44":T.accent1Dim),borderRadius:8,padding:"6px",fontSize:11,color:t.running?T.gold:T.accent1,cursor:"pointer",fontWeight:600}}>{t.running?"\u23F8 Pause":"\u25B6 Resume"}</button><button onClick={function(){setActiveTimer(Object.assign({},t,{remaining:t.totalSec,running:false}));}} style={{background:T.surfaceAlt,border:"1px solid "+T.border,borderRadius:8,padding:"6px 10px",fontSize:11,color:T.silverMuted,cursor:"pointer"}}>{"\u21BA"} Reset</button></div>
         </div>);
       })()}
+
     </div>
     </ThemeCtx.Provider>
   );
@@ -1254,14 +1060,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').then(function(reg) {
     console.log('PantrySpark: Service Worker registered', reg.scope);
-    // Check for updates every time the app loads
     reg.update();
-    // When a new SW is found and installed, reload to get new version
     reg.addEventListener('updatefound', function() {
       var newWorker = reg.installing;
       newWorker.addEventListener('statechange', function() {
         if (newWorker.state === 'activated') {
-          console.log('PantrySpark: New version available, refreshing...');
           window.location.reload();
         }
       });
@@ -1269,14 +1072,9 @@ if ('serviceWorker' in navigator) {
   }).catch(function(err) {
     console.log('PantrySpark: SW registration failed', err);
   });
-  // Also listen for controller change (when new SW takes over)
   var refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', function() {
-    if (!refreshing) {
-      refreshing = true;
-      console.log('PantrySpark: Controller changed, refreshing for update...');
-      window.location.reload();
-    }
+    if (!refreshing) { refreshing = true; window.location.reload(); }
   });
 }
 </script>
