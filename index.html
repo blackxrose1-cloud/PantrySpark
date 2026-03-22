@@ -439,14 +439,14 @@ function AIPhotoScanner({mode,onResult,onClose}){
     var img=new Image();
     img.onload=function(){
       var canvas=document.createElement("canvas");
-      var maxSize=512;
+      var maxSize=1024;
       var w=img.width;var h=img.height;
       if(w>h){if(w>maxSize){h=Math.round(h*maxSize/w);w=maxSize;}}
       else{if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize;}}
       canvas.width=w;canvas.height=h;
       var ctx=canvas.getContext("2d");
       ctx.drawImage(img,0,0,w,h);
-      var compressed=canvas.toDataURL("image/jpeg",0.5);
+      var compressed=canvas.toDataURL("image/jpeg",0.8);
       callback(compressed);
     };
     img.onerror=function(){callback(dataUrl);};
@@ -462,27 +462,32 @@ function AIPhotoScanner({mode,onResult,onClose}){
       ?"Analyze this food photo. Estimate the calories, protein (g), carbs (g), and fat (g). Respond ONLY with a JSON object like: {\"name\":\"food name\",\"calories\":000,\"protein\":00,\"carbs\":00,\"fat\":00,\"confidence\":\"high/medium/low\"}"
       :"Extract the recipe from this photo. Include name, ingredients with amounts, prep time, servings, and estimated nutrition. Respond ONLY with JSON like: {\"name\":\"Recipe Name\",\"time\":30,\"servings\":4,\"calories\":400,\"protein\":20,\"carbs\":30,\"fat\":15,\"tags\":[\"dinner\"],\"ingredients\":[{\"name\":\"ingredient\",\"amount\":1,\"unit\":\"cup\",\"category\":\"Produce\"}]}";
     try{
+      // Step 1: Get API key from secure Netlify function
+      setDebugInfo("Connecting to AI service...");
+      var keyResp=await fetch("/.netlify/functions/gemini");
+      var keyData=await keyResp.json();
+      if(keyData.error||!keyData.key){setError(keyData.error||"Could not get API key. Check Netlify environment variables.");setLoading(false);return;}
+      var apiKey=keyData.key;
+
+      // Step 2: Send image directly to Google (no size limit from Netlify)
       var base64=photo.split(",")[1];
-      var mimeType="image/jpeg";
       var sizeKB=Math.round(base64.length/1024);
-      setDebugInfo("Sending to Gemini AI ("+sizeKB+"KB)...");
-      if(sizeKB>4000){setError("Photo is too large ("+sizeKB+"KB). Please use a smaller photo.");setLoading(false);return;}
-      var geminiPayload={
-        contents:[{parts:[{inline_data:{mime_type:mimeType,data:base64}},{text:prompt}]}],
-        safetySettings:[
-          {category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_NONE"},
-          {category:"HARM_CATEGORY_HATE_SPEECH",threshold:"BLOCK_NONE"},
-          {category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_NONE"},
-          {category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_NONE"}
-        ],
-        generationConfig:{temperature:0.1,maxOutputTokens:1024}
-      };
-      var resp=await fetch("/.netlify/functions/gemini",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"gemini-2.5-flash",payload:geminiPayload})});
-      var responseText=await resp.text();
-      setDebugInfo("Response received: "+resp.status+" ("+responseText.length+" chars)");
-      if(!responseText||responseText.length===0){setError("Empty response from server. The image may be too large. Try a smaller photo.");setLoading(false);return;}
-      var data;
-      try{data=JSON.parse(responseText);}catch(parseErr){setError("Server returned invalid response ("+resp.status+"): "+responseText.slice(0,150));setLoading(false);return;}
+      setDebugInfo("Analyzing with Gemini AI ("+sizeKB+"KB)...");
+      var resp=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="+apiKey,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          contents:[{parts:[{inline_data:{mime_type:"image/jpeg",data:base64}},{text:prompt}]}],
+          safetySettings:[
+            {category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_NONE"},
+            {category:"HARM_CATEGORY_HATE_SPEECH",threshold:"BLOCK_NONE"},
+            {category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_NONE"},
+            {category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_NONE"}
+          ],
+          generationConfig:{temperature:0.1,maxOutputTokens:1024}
+        })
+      });
+      var data=await resp.json();
       setDebugInfo("Response received: "+resp.status);
       if(!resp.ok){
         var errMsg="Gemini error "+resp.status+": ";
