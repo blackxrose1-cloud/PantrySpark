@@ -487,6 +487,45 @@ function AIPhotoScanner({mode,onResult,onClose}){
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// ─── CALENDAR MEAL SLOT (wrapper to safely use hooks) ───────────────────
+function CalendarMealSlot({recipe,mealKey,mealIcon,mealColor,mealName,onView,onRemove,onAdd}){
+  var T=useT();
+  var pxImg=recipe?useRecipeImage(recipe.name,!!recipe.photo):null;
+  var imgUrl=recipe?(recipe.photo||(pxImg&&pxImg.url)||null):null;
+  return(<div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 4px",borderBottom:"1px solid "+T.surfaceAlt}}>
+    <div style={{width:70,flexShrink:0}}>
+      <div style={{fontSize:14}}>{mealIcon}</div>
+      <div style={{fontSize:10,fontWeight:600,color:mealColor,textTransform:"capitalize"}}>{mealName}</div>
+    </div>
+    {recipe?(
+      <div style={{flex:1,display:"flex",alignItems:"center",gap:10,background:T.surfaceAlt,borderRadius:10,padding:8,cursor:"pointer"}} onClick={function(){onView(recipe);}}>
+        {imgUrl?<img src={imgUrl} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:8,background:T.surface,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{recipe.img||"\uD83C\uDF7D\uFE0F"}</div>}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
+          <div style={{fontSize:10,color:T.silverMuted}}>{recipe.cal} cal \u00B7 {recipe.protein}g protein \u00B7 {recipe.time}m</div>
+        </div>
+        <button onClick={function(e){e.stopPropagation();onRemove();}} style={{width:24,height:24,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>{"\u00D7"}</button>
+      </div>
+    ):(
+      <button onClick={function(){onAdd();}} style={{flex:1,padding:"12px",borderRadius:10,border:"2px dashed "+T.borderLight,background:"transparent",color:T.textMuted,cursor:"pointer",fontSize:12,textAlign:"center",fontFamily:"'Manrope',sans-serif"}}>+ Add {mealName}</button>
+    )}
+  </div>);
+}
+
+// ─── RECIPE PICKER ITEM (wrapper to safely use hooks) ───────────────────
+function RecipePickerItem({recipe,onClick}){
+  var T=useT();
+  var pxI=useRecipeImage(recipe.name,!!recipe.photo);
+  var iUrl=recipe.photo||(pxI&&pxI.url)||null;
+  return(<div onClick={onClick} style={{display:"flex",alignItems:"center",gap:10,padding:10,borderRadius:10,border:"1px solid "+T.border,cursor:"pointer",background:T.surface}} onMouseEnter={function(e){e.currentTarget.style.background=T.accent1Bg;}} onMouseLeave={function(e){e.currentTarget.style.background=T.surface;}}>
+    {iUrl?<img src={iUrl} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:8,background:T.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{recipe.img||"\uD83C\uDF7D\uFE0F"}</div>}
+    <div style={{flex:1,minWidth:0}}>
+      <div style={{fontSize:12,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
+      <div style={{fontSize:10,color:T.silverMuted}}>{recipe.cal} cal \u00B7 {recipe.time}m</div>
+    </div>
+  </div>);
+}
+
 // ─── MEASUREMENT CONVERTER ──────────────────────────────────────────────
 function MeasurementConverter({cats,init}){
   var T=useT();
@@ -695,6 +734,18 @@ function App(){
   const[activeTimer,setActiveTimer]=useState(null); // {recipeName,step,totalSec,remaining,running}
   const timerRef=useRef(null);
   const inpRef=useRef(null);
+  // Timer tick effect (must be at top level, not inside render IIFE)
+  useEffect(function(){
+    if(!activeTimer||!activeTimer.running){clearInterval(timerRef.current);return;}
+    timerRef.current=setInterval(function(){
+      setActiveTimer(function(prev){
+        if(!prev||!prev.running)return prev;
+        if(prev.remaining<=1){clearInterval(timerRef.current);return Object.assign({},prev,{remaining:0,running:false});}
+        return Object.assign({},prev,{remaining:prev.remaining-1});
+      });
+    },1000);
+    return function(){clearInterval(timerRef.current);};
+  },[activeTimer&&activeTimer.running]);
   const T=THEMES[theme];
 
   const premiumRecipes=useMemo(()=>genPremium(),[]);
@@ -1054,29 +1105,8 @@ function App(){
                   {/* Meal slots */}
                   <div style={{padding:"8px 12px"}}>
                     {dayMeals.map(function(slot){
-                      var recipe=slot.recipe;
-                      var pxImg=recipe?useRecipeImage(recipe.name,!!recipe.photo):null;
-                      var imgUrl=recipe?(recipe.photo||(pxImg&&pxImg.url)||null):null;
-
-                      return(<div key={slot.meal} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 4px",borderBottom:"1px solid "+T.surfaceAlt}}>
-                        {/* Meal label */}
-                        <div style={{width:70,flexShrink:0}}>
-                          <div style={{fontSize:14}}>{MEAL_ICONS[slot.meal]}</div>
-                          <div style={{fontSize:10,fontWeight:600,color:MEAL_COLORS[slot.meal],textTransform:"capitalize"}}>{slot.meal}</div>
-                        </div>
-
-                        {recipe?(
-                          <div style={{flex:1,display:"flex",alignItems:"center",gap:10,background:T.surfaceAlt,borderRadius:10,padding:8,cursor:"pointer"}} onClick={function(){setViewRecipe(recipe);}}>
-                            {imgUrl?<img src={imgUrl} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:8,background:T.surface,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{recipe.img||"\uD83C\uDF7D\uFE0F"}</div>}
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{fontSize:12,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
-                              <div style={{fontSize:10,color:T.silverMuted}}>{recipe.cal} cal \u00B7 {recipe.protein}g protein \u00B7 {recipe.time}m</div>
-                            </div>
-                            <button onClick={function(e){e.stopPropagation();removeFromCalendar(day,slot.meal);}} style={{width:24,height:24,borderRadius:"50%",border:"1px solid "+T.danger+"44",background:"transparent",color:T.danger,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",padding:0,flexShrink:0}}>\u00D7</button>
-                          </div>
-                        ):(
-                          <button onClick={function(){setCalendarPicker({day:day,meal:slot.meal});}} style={{flex:1,padding:"12px",borderRadius:10,border:"2px dashed "+T.borderLight,background:"transparent",color:T.textMuted,cursor:"pointer",fontSize:12,textAlign:"center",fontFamily:"'Manrope',sans-serif"}}>+ Add {slot.meal}</button>
-                        )}
+                      return(<CalendarMealSlot key={slot.meal} recipe={slot.recipe} mealKey={day+"_"+slot.meal} mealIcon={MEAL_ICONS[slot.meal]} mealColor={MEAL_COLORS[slot.meal]} mealName={slot.meal} onView={function(r){setViewRecipe(r);}} onRemove={function(){removeFromCalendar(day,slot.meal);}} onAdd={function(){setCalendarPicker({day:day,meal:slot.meal});}}/>);
+                    })}
                       </div>);
                     })}
                   </div>
@@ -1177,15 +1207,8 @@ function App(){
                   <p style={{margin:"0 0 12px",fontSize:13,color:T.silverMuted}}>Choose a recipe</p>
                   <div style={{maxHeight:"55vh",overflowY:"auto",display:"grid",gap:6}}>
                     {allRecipes.filter(function(r){return !r.isPremiumOnly||isPremium;}).slice(0,50).map(function(r){
-                      var pxI=useRecipeImage(r.name,!!r.photo);
-                      var iUrl=r.photo||(pxI&&pxI.url)||null;
-                      return(<div key={r.id} onClick={function(){addToCalendar(calendarPicker.day,calendarPicker.meal,r);setCalendarPicker(null);}} style={{display:"flex",alignItems:"center",gap:10,padding:10,borderRadius:10,border:"1px solid "+T.border,cursor:"pointer",background:T.surface}} onMouseEnter={function(e){e.currentTarget.style.background=T.accent1Bg;}} onMouseLeave={function(e){e.currentTarget.style.background=T.surface;}}>
-                        {iUrl?<img src={iUrl} alt="" style={{width:40,height:40,borderRadius:8,objectFit:"cover",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:8,background:T.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{r.img||"\uD83C\uDF7D\uFE0F"}</div>}
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:12,fontWeight:600,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
-                          <div style={{fontSize:10,color:T.silverMuted}}>{r.cal} cal \u00B7 {r.time}m</div>
-                        </div>
-                      </div>);
+                      return(<RecipePickerItem key={r.id} recipe={r} onClick={function(){addToCalendar(calendarPicker.day,calendarPicker.meal,r);setCalendarPicker(null);}}/>);
+                    })}
                     })}
                   </div>
                 </div>
@@ -1206,18 +1229,6 @@ function App(){
         var mins=Math.floor(t.remaining/60);
         var secs=t.remaining%60;
         var pct=((t.totalSec-t.remaining)/t.totalSec)*100;
-        // Timer tick effect
-        useEffect(function(){
-          if(!activeTimer||!activeTimer.running)return;
-          timerRef.current=setInterval(function(){
-            setActiveTimer(function(prev){
-              if(!prev||!prev.running)return prev;
-              if(prev.remaining<=1){clearInterval(timerRef.current);return Object.assign({},prev,{remaining:0,running:false});}
-              return Object.assign({},prev,{remaining:prev.remaining-1});
-            });
-          },1000);
-          return function(){clearInterval(timerRef.current);};
-        },[activeTimer&&activeTimer.running]);
 
         return(<div style={{position:"fixed",bottom:20,right:20,background:T.surface,borderRadius:16,padding:16,border:"1px solid "+T.border,boxShadow:"0 8px 30px rgba(0,0,0,0.3)",zIndex:150,minWidth:220}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
