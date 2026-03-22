@@ -467,7 +467,7 @@ function AIPhotoScanner({mode,onResult,onClose}){
       var base64=photo.split(",")[1];
       var mimeType="image/jpeg";
       setDebugInfo("Sending to Gemini AI ("+Math.round(base64.length/1024)+"KB)...");
-      var apiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+GEMINI_KEY;
+      var apiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="+GEMINI_KEY;
       var body={
         contents:[{parts:[{inline_data:{mime_type:mimeType,data:base64}},{text:prompt}]}],
         safetySettings:[
