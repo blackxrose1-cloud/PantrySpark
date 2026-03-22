@@ -439,14 +439,14 @@ function AIPhotoScanner({mode,onResult,onClose}){
     var img=new Image();
     img.onload=function(){
       var canvas=document.createElement("canvas");
-      var maxSize=800;
+      var maxSize=512;
       var w=img.width;var h=img.height;
       if(w>h){if(w>maxSize){h=Math.round(h*maxSize/w);w=maxSize;}}
       else{if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize;}}
       canvas.width=w;canvas.height=h;
       var ctx=canvas.getContext("2d");
       ctx.drawImage(img,0,0,w,h);
-      var compressed=canvas.toDataURL("image/jpeg",0.7);
+      var compressed=canvas.toDataURL("image/jpeg",0.5);
       callback(compressed);
     };
     img.onerror=function(){callback(dataUrl);};
@@ -464,7 +464,9 @@ function AIPhotoScanner({mode,onResult,onClose}){
     try{
       var base64=photo.split(",")[1];
       var mimeType="image/jpeg";
-      setDebugInfo("Sending to Gemini AI ("+Math.round(base64.length/1024)+"KB)...");
+      var sizeKB=Math.round(base64.length/1024);
+      setDebugInfo("Sending to Gemini AI ("+sizeKB+"KB)...");
+      if(sizeKB>4000){setError("Photo is too large ("+sizeKB+"KB). Please use a smaller photo.");setLoading(false);return;}
       var geminiPayload={
         contents:[{parts:[{inline_data:{mime_type:mimeType,data:base64}},{text:prompt}]}],
         safetySettings:[
@@ -476,7 +478,11 @@ function AIPhotoScanner({mode,onResult,onClose}){
         generationConfig:{temperature:0.1,maxOutputTokens:1024}
       };
       var resp=await fetch("/.netlify/functions/gemini",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"gemini-2.5-flash",payload:geminiPayload})});
-      var data=await resp.json();
+      var responseText=await resp.text();
+      setDebugInfo("Response received: "+resp.status+" ("+responseText.length+" chars)");
+      if(!responseText||responseText.length===0){setError("Empty response from server. The image may be too large. Try a smaller photo.");setLoading(false);return;}
+      var data;
+      try{data=JSON.parse(responseText);}catch(parseErr){setError("Server returned invalid response ("+resp.status+"): "+responseText.slice(0,150));setLoading(false);return;}
       setDebugInfo("Response received: "+resp.status);
       if(!resp.ok){
         var errMsg="Gemini error "+resp.status+": ";
