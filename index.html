@@ -465,8 +465,14 @@ function AIPhotoScanner({mode,onResult,onClose}){
       // Step 1: Get API key from secure Netlify function
       setDebugInfo("Connecting to AI service...");
       var keyResp=await fetch("/.netlify/functions/gemini");
-      var keyData=await keyResp.json();
-      if(keyData.error||!keyData.key){setError(keyData.error||"Could not get API key. Check Netlify environment variables.");setLoading(false);return;}
+      var keyText=await keyResp.text();
+      if(keyText.indexOf("<!DOCTYPE")!==-1||keyText.indexOf("<html")!==-1){
+        setError("Serverless function not found. Make sure netlify/functions/gemini.js is in your GitHub repo and GEMINI_API_KEY is set in Netlify environment variables. Then redeploy.");
+        setLoading(false);return;
+      }
+      var keyData;
+      try{keyData=JSON.parse(keyText);}catch(e){setError("Function returned invalid response: "+keyText.slice(0,100));setLoading(false);return;}
+      if(keyData.error||!keyData.key){setError(keyData.error||"Could not get API key. Add GEMINI_API_KEY in Netlify Site settings > Environment variables.");setLoading(false);return;}
       var apiKey=keyData.key;
 
       // Step 2: Send image directly to Google (no size limit from Netlify)
@@ -876,7 +882,7 @@ function App(){
             </div>
           </div>
           <div style={{display:"flex",gap:1,overflowX:"auto",paddingBottom:2}}>
-            {NAV.map(n=>(<button key={n.key} onClick={()=>{setView(n.key);if(n.key==="upload")setShowUpload(true);setPage(1);}} style={{padding:"7px 10px",border:"none",borderRadius:"7px 7px 0 0",background:view===n.key?T.bg:"transparent",color:view===n.key?T.accent1:T.silverMuted,fontWeight:view===n.key?600:400,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:3,fontFamily:"'Manrope',sans-serif",transition:"all 0.15s"}}><span style={{fontSize:13}}>{n.icon}</span><span>{n.label}</span>{n.badge&&<span style={{background:view===n.key?T.accent1:T.accent1+"44",color:"#fff",fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}</button>))}
+            {NAV.map(n=>(<button key={n.key} onClick={()=>{setView(n.key);if(n.key==="upload")setShowUpload(false);setPage(1);}} style={{padding:"7px 10px",border:"none",borderRadius:"7px 7px 0 0",background:view===n.key?T.bg:"transparent",color:view===n.key?T.accent1:T.silverMuted,fontWeight:view===n.key?600:400,fontSize:11,cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:3,fontFamily:"'Manrope',sans-serif",transition:"all 0.15s"}}><span style={{fontSize:13}}>{n.icon}</span><span>{n.label}</span>{n.badge&&<span style={{background:view===n.key?T.accent1:T.accent1+"44",color:"#fff",fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{n.badge}</span>}</button>))}
           </div>
         </div>
       </div>
