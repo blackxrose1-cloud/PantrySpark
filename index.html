@@ -143,7 +143,7 @@ function nutritionScore(cal,protein,carbs,fat){let s=50;if(protein>=20)s+=15;els
 
 
 // ─── PEXELS IMAGE SYSTEM ────────────────────────────────────────────────
-var PEXELS_KEY="tVjUtBDJrpqZClXs6j38Yl8QYGzkxMm16QzrRqJPyH6y6shsH4bUr4Kh";
+// Pexels images loaded via Netlify serverless proxy
 var imgMemCache={};
 try{var stored=localStorage.getItem("ps_pexels_v3");if(stored)imgMemCache=JSON.parse(stored);}catch(e){}
 function saveImgCache(){try{localStorage.setItem("ps_pexels_v3",JSON.stringify(imgMemCache));}catch(e){}}
@@ -196,9 +196,7 @@ function processQueue(){
   if(fetching||fetchQueue.length===0)return;
   fetching=true;
   var item=fetchQueue.shift();
-  fetch("https://api.pexels.com/v1/search?query="+encodeURIComponent(item.q)+"&per_page=1&orientation=landscape",{
-    headers:{"Authorization":PEXELS_KEY}
-  }).then(function(r){return r.json();}).then(function(data){
+  fetch("/.netlify/functions/pexels?query="+encodeURIComponent(item.q)+"&per_page=1&orientation=landscape").then(function(r){return r.json();}).then(function(data){
     if(data.photos&&data.photos.length>0){
       var photo=data.photos[0];
       var result={url:photo.src.medium,thumb:photo.src.small,photographer:photo.photographer};
@@ -433,7 +431,7 @@ function RecipeUploadForm({onSave,onCancel,nextId}){const T=useT();const[form,se
 
 // ─── AI PHOTO SCANNER ───────────────────────────────────────────────────
 function AIPhotoScanner({mode,onResult,onClose}){
-  var GEMINI_KEY="AIzaSyDFgA94CSLZQn6wYqwMGyMesNXXvAyYy3Q";
+  // Gemini AI loaded via Netlify serverless proxy
   const T=useT();const[photo,setPhoto]=useState(null);const[loading,setLoading]=useState(false);const[result,setResult]=useState(null);const[error,setError]=useState(null);const[debugInfo,setDebugInfo]=useState("");const fileRef=useRef(null);
 
   // Compress image to max 800px and JPEG quality 0.7 to keep base64 small
@@ -467,8 +465,7 @@ function AIPhotoScanner({mode,onResult,onClose}){
       var base64=photo.split(",")[1];
       var mimeType="image/jpeg";
       setDebugInfo("Sending to Gemini AI ("+Math.round(base64.length/1024)+"KB)...");
-      var apiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="+GEMINI_KEY;
-      var body={
+      var geminiPayload={
         contents:[{parts:[{inline_data:{mime_type:mimeType,data:base64}},{text:prompt}]}],
         safetySettings:[
           {category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_NONE"},
@@ -478,7 +475,7 @@ function AIPhotoScanner({mode,onResult,onClose}){
         ],
         generationConfig:{temperature:0.1,maxOutputTokens:1024}
       };
-      var resp=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      var resp=await fetch("/.netlify/functions/gemini",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"gemini-2.5-flash",payload:geminiPayload})});
       var data=await resp.json();
       setDebugInfo("Response received: "+resp.status);
       if(!resp.ok){
