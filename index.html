@@ -433,21 +433,77 @@ function RecipeUploadForm({onSave,onCancel,nextId}){const T=useT();const[form,se
 
 // ─── AI PHOTO SCANNER ───────────────────────────────────────────────────
 function AIPhotoScanner({mode,onResult,onClose}){
-  const T=useT();const[photo,setPhoto]=useState(null);const[loading,setLoading]=useState(false);const[result,setResult]=useState(null);const[error,setError]=useState(null);const fileRef=useRef(null);
-  const handlePhoto=(e)=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(ev)=>setPhoto(ev.target.result);reader.readAsDataURL(file);};
-  const analyze=async()=>{if(!photo)return;setLoading(true);setError(null);
+  var GEMINI_KEY="AIzaSyDFgA94CSLZQn6wYqwMGyMesNXXvAyYy3Q";
+  const T=useT();const[photo,setPhoto]=useState(null);const[loading,setLoading]=useState(false);const[result,setResult]=useState(null);const[error,setError]=useState(null);const[debugInfo,setDebugInfo]=useState("");const fileRef=useRef(null);
+
+  // Compress image to max 800px and JPEG quality 0.7 to keep base64 small
+  function compressImage(dataUrl,callback){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement("canvas");
+      var maxSize=800;
+      var w=img.width;var h=img.height;
+      if(w>h){if(w>maxSize){h=Math.round(h*maxSize/w);w=maxSize;}}
+      else{if(h>maxSize){w=Math.round(w*maxSize/h);h=maxSize;}}
+      canvas.width=w;canvas.height=h;
+      var ctx=canvas.getContext("2d");
+      ctx.drawImage(img,0,0,w,h);
+      var compressed=canvas.toDataURL("image/jpeg",0.7);
+      callback(compressed);
+    };
+    img.onerror=function(){callback(dataUrl);};
+    img.src=dataUrl;
+  }
+
+  const handlePhoto=(e)=>{const file=e.target.files&&e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(ev){
+    compressImage(ev.target.result,function(compressed){setPhoto(compressed);});
+  };reader.readAsDataURL(file);};
+
+  const analyze=async()=>{if(!photo)return;setLoading(true);setError(null);setDebugInfo("Preparing image...");
     const prompt=mode==="calories"
       ?"Analyze this food photo. Estimate the calories, protein (g), carbs (g), and fat (g). Respond ONLY with a JSON object like: {\"name\":\"food name\",\"calories\":000,\"protein\":00,\"carbs\":00,\"fat\":00,\"confidence\":\"high/medium/low\"}"
       :"Extract the recipe from this photo. Include name, ingredients with amounts, prep time, servings, and estimated nutrition. Respond ONLY with JSON like: {\"name\":\"Recipe Name\",\"time\":30,\"servings\":4,\"calories\":400,\"protein\":20,\"carbs\":30,\"fat\":15,\"tags\":[\"dinner\"],\"ingredients\":[{\"name\":\"ingredient\",\"amount\":1,\"unit\":\"cup\",\"category\":\"Produce\"}]}";
     try{
-      const base64=photo.split(",")[1];const mediaType=photo.split(";")[0].split(":")[1];
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:mediaType,data:base64}},{type:"text",text:prompt}]}]})});
-      const data=await resp.json();var found=data.content&&data.content.find(c=>c.type==="text");const text=found?found.text:"";
-      const jsonMatch=text.match(/\{[\s\S]*\}/);if(jsonMatch){const parsed=JSON.parse(jsonMatch[0]);setResult(parsed);}else{setError("Could not parse response. Try a clearer photo.");}
-    }catch(err){setError("Analysis failed. Please try again.");}
+      var base64=photo.split(",")[1];
+      var mimeType="image/jpeg";
+      setDebugInfo("Sending to Gemini AI ("+Math.round(base64.length/1024)+"KB)...");
+      var apiUrl="https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="+GEMINI_KEY;
+      var body={
+        contents:[{parts:[{inline_data:{mime_type:mimeType,data:base64}},{text:prompt}]}],
+        safetySettings:[
+          {category:"HARM_CATEGORY_HARASSMENT",threshold:"BLOCK_NONE"},
+          {category:"HARM_CATEGORY_HATE_SPEECH",threshold:"BLOCK_NONE"},
+          {category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_NONE"},
+          {category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_NONE"}
+        ],
+        generationConfig:{temperature:0.1,maxOutputTokens:1024}
+      };
+      var resp=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      var data=await resp.json();
+      setDebugInfo("Response received: "+resp.status);
+      if(!resp.ok){
+        var errMsg="Gemini error "+resp.status+": ";
+        if(data.error){errMsg+=data.error.message||data.error.status||"Unknown";}
+        setError(errMsg);setLoading(false);return;
+      }
+      var text="";
+      if(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts){
+        text=data.candidates[0].content.parts.map(function(p){return p.text||"";}).join("");
+      }
+      if(!text&&data.candidates&&data.candidates[0]&&data.candidates[0].finishReason){
+        setError("Gemini blocked the request. Reason: "+data.candidates[0].finishReason);setLoading(false);return;
+      }
+      var cleaned=text.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+      var jsonMatch=cleaned.match(/\{[\s\S]*\}/);
+      if(jsonMatch){var parsed=JSON.parse(jsonMatch[0]);setResult(parsed);setDebugInfo("");}
+      else{setError("Could not parse AI response. Raw: "+text.slice(0,200));}
+    }catch(err){
+      setError("Connection failed: "+err.message+". Check your internet connection.");
+      setDebugInfo("Error type: "+err.name);
+    }
     setLoading(false);
   };
-  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,background:T.inputBg,color:T.text};
+  const inp={width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid "+T.border,fontSize:13,background:T.inputBg,color:T.text};
   return(
     <div style={{position:"fixed",inset:0,background:T.modalOverlay,backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{background:T.surface,borderRadius:20,padding:28,maxWidth:480,width:"100%",maxHeight:"85vh",overflowY:"auto",border:`1px solid ${T.border}`}}>
@@ -457,7 +513,8 @@ function AIPhotoScanner({mode,onResult,onClose}){
           {photo?<img src={photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<div style={{textAlign:"center",color:T.textMuted}}><div style={{fontSize:36,marginBottom:6}}>📷</div><div style={{fontSize:13}}>Tap to take or upload a photo</div></div>}
         </div>
         <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={handlePhoto} style={{display:"none"}}/>
-        {photo&&!result&&(<button onClick={analyze} disabled={loading} style={{width:"100%",background:loading?T.surfaceAlt:T.gradAccent,color:loading?T.silverMuted:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:600,cursor:loading?"wait":"pointer",marginBottom:12}}>{loading?"🔄 Analyzing with AI...":"✨ Analyze with AI"}</button>)}
+        {photo&&!result&&(<button onClick={analyze} disabled={loading} style={{width:"100%",background:loading?T.surfaceAlt:T.gradAccent,color:loading?T.silverMuted:"#fff",border:"none",padding:"12px",borderRadius:10,fontSize:14,fontWeight:600,cursor:loading?"wait":"pointer",marginBottom:12}}>{loading?"\uD83D\uDD04 Analyzing with AI...":"\u2728 Analyze with AI"}</button>)}
+        {debugInfo&&<div style={{fontSize:11,color:T.silverMuted,textAlign:"center",marginBottom:8}}>{debugInfo}</div>}
         {error&&<div style={{padding:12,borderRadius:8,background:T.dangerBg,color:T.danger,fontSize:13,marginBottom:12}}>{error}</div>}
         {result&&mode==="calories"&&(
           <div style={{background:T.surfaceAlt,borderRadius:12,padding:16,marginBottom:12}}>
