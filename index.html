@@ -502,15 +502,58 @@ function AIPhotoScanner({mode,onResult,onClose}){
       }
       var text="";
       if(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts){
-        text=data.candidates[0].content.parts.map(function(p){return p.text||"";}).join("");
+        // Filter out "thinking" parts — only get text parts
+        var parts=data.candidates[0].content.parts;
+        for(var pi=0;pi<parts.length;pi++){
+          if(parts[pi].text&&!parts[pi].thought){
+            text+=parts[pi].text;
+          }
+        }
+        // If no non-thought text found, try all parts
+        if(!text){
+          for(var pi2=0;pi2<parts.length;pi2++){
+            if(parts[pi2].text)text+=parts[pi2].text;
+          }
+        }
       }
       if(!text&&data.candidates&&data.candidates[0]&&data.candidates[0].finishReason){
         setError("Gemini blocked the request. Reason: "+data.candidates[0].finishReason);setLoading(false);return;
       }
-      var cleaned=text.replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+      // Clean up the response — remove markdown fences, extra whitespace, thinking text
+      var cleaned=text.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
+      // Try to find JSON object in the response
       var jsonMatch=cleaned.match(/\{[\s\S]*\}/);
-      if(jsonMatch){var parsed=JSON.parse(jsonMatch[0]);setResult(parsed);setDebugInfo("");}
-      else{setError("Could not parse AI response. Raw: "+text.slice(0,200));}
+      if(jsonMatch){
+        try{
+          var parsed=JSON.parse(jsonMatch[0]);
+          setResult(parsed);setDebugInfo("");
+        }catch(parseErr){
+          // If the first match fails, try finding a smaller JSON block
+          var lines=cleaned.split("\n");
+          var jsonStr="";
+          var depth=0;var started=false;
+          for(var li=0;li<lines.length;li++){
+            var line=lines[li];
+            if(!started&&line.indexOf("{")!==-1){started=true;}
+            if(started){
+              jsonStr+=line+"\n";
+              for(var ci=0;ci<line.length;ci++){
+                if(line[ci]==="{")depth++;
+                if(line[ci]==="}")depth--;
+              }
+              if(depth<=0&&started)break;
+            }
+          }
+          try{
+            var parsed2=JSON.parse(jsonStr.trim());
+            setResult(parsed2);setDebugInfo("");
+          }catch(e2){
+            setError("Could not parse AI response. Try a clearer photo.");
+            setDebugInfo("Raw: "+text.slice(0,300));
+          }
+        }
+      }
+      else{setError("AI did not return recipe data. Try a clearer, well-lit photo of the recipe.");setDebugInfo("Raw: "+text.slice(0,300));}
     }catch(err){
       setError("Connection failed: "+err.message+". Check your internet connection.");
       setDebugInfo("Error type: "+err.name);
