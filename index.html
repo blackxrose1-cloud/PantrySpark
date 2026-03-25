@@ -459,15 +459,14 @@ function AIPhotoScanner({mode,onResult,onClose}){
 
   const analyze=async()=>{if(!photo)return;setLoading(true);setError(null);setDebugInfo("Preparing image...");
     const prompt=mode==="calories"
-      ?"Analyze this food photo. Estimate the calories, protein (g), carbs (g), and fat (g). Respond ONLY with a JSON object like: {\"name\":\"food name\",\"calories\":000,\"protein\":00,\"carbs\":00,\"fat\":00,\"confidence\":\"high/medium/low\"}"
-      :"Extract the recipe from this photo. Include name, ingredients with amounts, prep time, servings, and estimated nutrition. Respond ONLY with JSON like: {\"name\":\"Recipe Name\",\"time\":30,\"servings\":4,\"calories\":400,\"protein\":20,\"carbs\":30,\"fat\":15,\"tags\":[\"dinner\"],\"ingredients\":[{\"name\":\"ingredient\",\"amount\":1,\"unit\":\"cup\",\"category\":\"Produce\"}]}";
+      ?"Look at this photo of food. Estimate the total calories, protein in grams, carbs in grams, and fat in grams. Your response must be ONLY a JSON object with no other text, like this: {\"name\":\"food name\",\"calories\":350,\"protein\":25,\"carbs\":30,\"fat\":12,\"confidence\":\"medium\"}"
+      :"Read this image carefully. It may be a printed recipe, handwritten recipe, cookbook page, recipe card, screenshot, or photo of a recipe on a screen. Extract ALL information you can see including the recipe name, every ingredient with amounts and units, prep/cook time, number of servings, and estimate the nutrition if not listed. Your response must be ONLY a JSON object with no other text before or after it. Use exactly this format: {\"name\":\"Recipe Name\",\"time\":30,\"servings\":4,\"calories\":400,\"protein\":20,\"carbs\":30,\"fat\":15,\"tags\":[\"dinner\"],\"ingredients\":[{\"name\":\"chicken breast\",\"amount\":2,\"unit\":\"lbs\",\"category\":\"Meat\"}]} Valid categories are: Meat, Seafood, Dairy, Produce, Pantry. Do not include any explanation, just the JSON.";
     try{
-      // Step 1: Get API key from secure Netlify function
       setDebugInfo("Connecting to AI service...");
       var keyResp=await fetch("/.netlify/functions/gemini");
       var keyText=await keyResp.text();
       if(keyText.indexOf("<!DOCTYPE")!==-1||keyText.indexOf("<html")!==-1){
-        setError("Serverless function not found. Make sure netlify/functions/gemini.js is in your GitHub repo and GEMINI_API_KEY is set in Netlify environment variables. Then redeploy.");
+        setError("Serverless function not found. Make sure functions/gemini.js is in your GitHub repo and GEMINI_API_KEY is set in Netlify environment variables. Then redeploy.");
         setLoading(false);return;
       }
       var keyData;
@@ -475,11 +474,10 @@ function AIPhotoScanner({mode,onResult,onClose}){
       if(keyData.error||!keyData.key){setError(keyData.error||"Could not get API key. Add GEMINI_API_KEY in Netlify Site settings > Environment variables.");setLoading(false);return;}
       var apiKey=keyData.key;
 
-      // Step 2: Send image directly to Google (no size limit from Netlify)
       var base64=photo.split(",")[1];
       var sizeKB=Math.round(base64.length/1024);
-      setDebugInfo("Analyzing with Gemini AI ("+sizeKB+"KB)...");
-      var resp=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="+apiKey,{
+      setDebugInfo("Analyzing with AI ("+sizeKB+"KB)...");
+      var resp=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+apiKey,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
@@ -490,7 +488,7 @@ function AIPhotoScanner({mode,onResult,onClose}){
             {category:"HARM_CATEGORY_SEXUALLY_EXPLICIT",threshold:"BLOCK_NONE"},
             {category:"HARM_CATEGORY_DANGEROUS_CONTENT",threshold:"BLOCK_NONE"}
           ],
-          generationConfig:{temperature:0.1,maxOutputTokens:1024}
+          generationConfig:{temperature:0.2,maxOutputTokens:2048}
         })
       });
       var data=await resp.json();
